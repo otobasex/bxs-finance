@@ -104,7 +104,6 @@ function detectPeriodLabel(transactions) {
 
 /* ─── UNIVERSAL SPREADSHEET PARSER (CSV + Excel via SheetJS) ─── */
 async function parseSpreadsheet(file) {
-  // Dynamically load SheetJS from CDN
   if (!window.XLSX) {
     await new Promise((res, rej) => {
       const s = document.createElement("script");
@@ -117,85 +116,85 @@ async function parseSpreadsheet(file) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  // raw: keep strings as-is so "694.00Cr" is preserved
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
   if (rows.length < 2) return [];
 
-  // Find header row — first row with at least 3 non-empty cells
-  let headerIdx = 0;
-  for (let i = 0; i < Math.min(10, rows.length); i++) {
-    if (rows[i].filter(c => String(c).trim()).length >= 3) { headerIdx = i; break; }
-  }
-  const headers = rows[headerIdx].map(h => String(h).toLowerCase().trim());
+  const MNS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-  // Column detection
+  const formatDate = (raw) => {
+    if (!raw) return null;
+    if (raw instanceof Date && !isNaN(raw)) return `${String(raw.getDate()).padStart(2,"0")} ${MNS[raw.getMonth()]}`;
+    const s = String(raw).trim();
+    // Already "07 Jan" or "Jan 07"
+    const m0 = s.match(/^(\d{1,2})\s+([A-Za-z]{3})/);
+    if (m0) { const mo = MNS.findIndex(m => m.toLowerCase() === m0[2].toLowerCase()); if (mo !== -1) return `${String(parseInt(m0[1])).padStart(2,"0")} ${MNS[mo]}`; }
+    // DD/MM/YYYY or DD-MM-YYYY
+    const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m1) { const d=parseInt(m1[1]),mo=parseInt(m1[2])-1; if(mo>=0&&mo<12) return `${String(d).padStart(2,"0")} ${MNS[mo]}`; }
+    // YYYY-MM-DD
+    const m2 = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+    if (m2) { const mo=parseInt(m2[2])-1,d=parseInt(m2[3]); if(mo>=0&&mo<12) return `${String(d).padStart(2,"0")} ${MNS[mo]}`; }
+    return null;
+  };
+
+  // Find header row — look for a row containing "date" and "amount" or "description"
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(15, rows.length); i++) {
+    const cells = rows[i].map(c => String(c).toLowerCase().trim());
+    const hasDate = cells.some(c => c === "date");
+    const hasAmt  = cells.some(c => c.includes("amount") || c.includes("debit") || c.includes("credit"));
+    const hasDesc = cells.some(c => c.includes("desc") || c.includes("narrat") || c.includes("detail") || c.includes("transaction") || c.includes("particular"));
+    if (hasDate && (hasAmt || hasDesc)) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) return [];
+
+  const headers = rows[headerIdx].map(h => String(h).toLowerCase().trim());
   const col = (terms) => headers.findIndex(h => terms.some(t => h.includes(t)));
+
   const dateIdx = col(["date"]);
-  const descIdx = col(["description","narration","details","reference","desc","particular","transaction"]);
+  const descIdx = col(["description","narration","details","reference","particular","transaction","desc"]);
   const amtIdx  = col(["amount"]);
   const credIdx = col(["credit","deposit","money in"]);
   const debIdx  = col(["debit","withdrawal","money out"]);
 
-  if (dateIdx === -1 || descIdx === -1) return [];
+  if (dateIdx === -1) return [];
 
-  const MN = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
-  const MNFull = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-  const formatDate = (raw) => {
-    if (!raw) return null;
-    // Already a JS Date (SheetJS with cellDates:true)
-    if (raw instanceof Date && !isNaN(raw)) {
-      return `${String(raw.getDate()).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][raw.getMonth()]}`;
-    }
-    const s = String(raw).trim();
-    // DD/MM/YYYY or DD-MM-YYYY or YYYY-MM-DD
-    const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-    if (m1) { const d=parseInt(m1[1]),mo=parseInt(m1[2])-1; return `${String(d).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo]}`; }
-    const m2 = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
-    if (m2) { const mo=parseInt(m2[2])-1,d=parseInt(m2[3]); return `${String(d).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo]}`; }
-    // "08 Dec 2025" or "Dec 08 2025"
-    const m3 = s.match(/(\d{1,2})\s+([A-Za-z]+)/);
-    if (m3) { const mo = MN.indexOf(m3[2].toLowerCase().slice(0,3)); if (mo !== -1) return `${String(parseInt(m3[1])).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo]}`; }
-    return s.slice(0, 10); // fallback
-  };
-
-  const parseAmt = (v) => {
-    if (v === "" || v === null || v === undefined) return 0;
-    if (typeof v === "number") return v;
-    // Strip currency symbols, spaces, but keep minus and digits
-    return parseFloat(String(v).replace(/[^\d.\-]/g, "")) || 0;
-  };
+  // If no desc column found, try column 2 (FNB export fallback)
+  const resolvedDescIdx = descIdx !== -1 ? descIdx : 2;
 
   const results = [];
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     const dateRaw = row[dateIdx];
-    const desc = String(row[descIdx] || "").trim();
-    if (!desc || desc.toLowerCase() === "description") continue;
-
+    const desc = String(row[resolvedDescIdx] || "").trim();
     const dateStr = formatDate(dateRaw);
-    if (!dateStr) continue;
+    if (!dateStr || !desc || desc.toLowerCase() === "description") continue;
 
     let amount = 0, isCredit = false;
 
     if (credIdx !== -1 && debIdx !== -1) {
-      // Separate debit/credit columns
-      const cred = parseAmt(row[credIdx]);
-      const deb  = parseAmt(row[debIdx]);
-      if (Math.abs(cred) > 0) { amount = Math.abs(cred); isCredit = true; }
-      else if (Math.abs(deb) > 0) { amount = Math.abs(deb); isCredit = false; }
+      // Two separate columns: credit | debit
+      const credRaw = String(row[credIdx] || "").replace(/[^\d.]/g, "");
+      const debRaw  = String(row[debIdx]  || "").replace(/[^\d.]/g, "");
+      const cred = parseFloat(credRaw) || 0;
+      const deb  = parseFloat(debRaw)  || 0;
+      if (cred > 0) { amount = cred; isCredit = true; }
+      else if (deb > 0) { amount = deb; isCredit = false; }
       else continue;
     } else if (amtIdx !== -1) {
-      // Single amount column — negative = debit, positive = credit
-      // Also handle "Cr" suffix meaning credit
+      // Single amount column — FNB format: "694.00Cr" = credit, "107.00" = debit
       const raw = String(row[amtIdx] || "").trim();
+      if (!raw) continue;
       const hasCr = /cr$/i.test(raw);
-      const num = parseAmt(raw);
+      const num = parseFloat(raw.replace(/[^\d.\-]/g, "")) || 0;
       if (num === 0) continue;
-      if (hasCr) { amount = Math.abs(num); isCredit = true; }
-      else if (num < 0) { amount = Math.abs(num); isCredit = false; }
-      else { amount = num; isCredit = true; } // positive = credit in single-column statements
+      // KEY FNB RULE: Cr suffix = credit; no suffix = debit (regardless of sign)
+      isCredit = hasCr;
+      amount = Math.abs(num);
     } else continue;
 
+    if (amount === 0) continue;
     results.push(`${dateStr} ${desc} ${amount.toFixed(2)}${isCredit ? "Cr" : ""} 0.00`);
   }
   return results.join("\n");
@@ -207,7 +206,7 @@ function fmt(n, short = false) {
 }
 
 /* ─── LOGIN SCREEN ─── */
-function LoginScreen({ onLogin }) {
+function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState("login"); // "login" | "signup"
@@ -415,19 +414,30 @@ function ImportModal({ open, onClose, onImport }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 4000,
+            max_tokens: 8000,
             messages: [{
               role: "user",
               content: [
                 { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-                { type: "text", text: `Extract every transaction from this bank statement and return them as a JSON array. Each item must have these fields:
-- date: "DD Mon" format e.g. "08 Dec"
-- description: the transaction description text
-- amount: numeric amount (positive number)
-- isCredit: true if it's money coming IN (deposit, payment received), false if money going OUT
+                { type: "text", text: `Extract every transaction from this FNB bank statement and return them as a JSON array.
 
-Return ONLY the JSON array, no other text. Example:
-[{"date":"08 Dec","description":"FNB App Payment From Payment","amount":7700,"isCredit":true},{"date":"08 Dec","description":"FNB App Transfer To Oto","amount":500,"isCredit":false}]` }
+CRITICAL RULES for this FNB statement format:
+- If the Amount column shows a number with "Cr" at the end (e.g. "694.00Cr") → isCredit: true (money IN)
+- If the Amount column shows a number WITHOUT "Cr" (e.g. "107.00") → isCredit: false (money OUT / debit)
+- Skip rows where Description is empty or only contains "#" fee codes with no meaningful description
+- Include rows where Description starts with "#" only if they have a recognisable name (e.g. "#Service Fees #Int Pymt Fee-Apple.Com/B")
+- The Balance column should be IGNORED
+
+Each item in the JSON array must have:
+- date: string in "DD Mon" format e.g. "08 Jan"
+- description: the transaction description text (cleaned, no extra whitespace)
+- amount: numeric amount as a positive number
+- isCredit: true if Cr suffix present, false if no Cr suffix
+
+Return ONLY the JSON array, no other text, no markdown.
+
+Example output:
+[{"date":"07 Jan","description":"POS Purchase Uber","amount":107.00,"isCredit":false},{"date":"08 Jan","description":"FNB App Transfer From Oto","amount":694.00,"isCredit":true}]` }
               ]
             }]
           })
@@ -512,7 +522,7 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
   const [dateStr, setDateStr] = useState(transaction.dateStr);
   const [category, setCategory] = useState(transaction.manualCategory || transaction.category);
 
-  const MN = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+  const MN = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
 
   const handleSave = () => {
     const amt = parseFloat(amount.replace(/[^0-9.]/g, ""));
@@ -629,22 +639,6 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
   const stmt = statements[activeStmt] || statements[0];
   const transactions = stmt?.transactions || [];
 
-  /* Update transaction in Supabase */
-  const updateTransaction = async (stmtId, txLocalId, fields) => {
-    await supabase.from("transactions").update(fields).eq("statement_id", stmtId).eq("local_id", txLocalId);
-  };
-
-  const setTransactions = async (updater) => {
-    const updated = typeof updater === "function" ? updater(transactions) : updater;
-    setStatements(prev => prev.map((s, i) => i === activeStmt ? { ...s, transactions: updated } : s));
-    // Persist each changed transaction
-    const stmtId = stmt?.id;
-    if (!stmtId) return;
-    for (const t of updated) {
-      await supabase.from("transactions").update({ category: t.category, ai_categorised: t.aiCategorised, manual_category: t.manualCategory }).eq("statement_id", stmtId).eq("local_id", t.id);
-    }
-  };
-
   const summary = useMemo(() => {
     const income = transactions.filter(t => t.isCredit).reduce((s, t) => s + t.amount, 0);
     const spend  = transactions.filter(t => !t.isCredit).reduce((s, t) => s + t.amount, 0);
@@ -672,8 +666,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
     await supabase.from("transactions").insert(txRows);
     const newEntry = { id: newStmt.id, label, transactions: parsed };
+    const newIndex = statements.length;
     setStatements(prev => [...prev, newEntry]);
-    setActiveStmt(statements.length);
+    setActiveStmt(newIndex);
     setShowImport(false); setAiStatus(null);
   };
 
