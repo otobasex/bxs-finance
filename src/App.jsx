@@ -102,34 +102,103 @@ function detectPeriodLabel(transactions) {
   return months.join(" – ");
 }
 
-/* ─── CSV PARSER ─── */
-function parseCSV(text) {
-  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-  const header = lines[0].toLowerCase();
-  const cols = header.split(",").map(c => c.replace(/"/g, "").trim());
-  const dateIdx = cols.findIndex(c => c.includes("date"));
-  const descIdx = cols.findIndex(c => c.includes("desc") || c.includes("narrat") || c.includes("detail") || c.includes("ref"));
-  const credIdx = cols.findIndex(c => c.includes("credit"));
-  const debIdx  = cols.findIndex(c => c.includes("debit"));
-  const amtIdx  = cols.findIndex(c => c.includes("amount"));
-  if (dateIdx === -1 || descIdx === -1) return lines.slice(1).join("\n");
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(",").map(c => c.replace(/"/g, "").trim());
-    if (cells.length < 3) continue;
-    const date = cells[dateIdx] || "", desc = cells[descIdx] || "";
-    let amount = 0, isCredit = false;
-    if (credIdx !== -1 && debIdx !== -1) {
-      const cred = parseFloat(cells[credIdx]) || 0, deb = parseFloat(cells[debIdx]) || 0;
-      if (cred > 0) { amount = cred; isCredit = true; } else { amount = deb; isCredit = false; }
-    } else {
-      const raw = parseFloat(cells[amtIdx]?.replace(/[^0-9.-]/g, "")) || 0;
-      isCredit = raw > 0; amount = Math.abs(raw);
-    }
-    if (!amount || !desc) continue;
-    rows.push(`${date} ${desc} ${amount.toFixed(2)}${isCredit ? "Cr" : ""} 0.00`);
+/* ─── UNIVERSAL SPREADSHEET PARSER (CSV + Excel via SheetJS) ─── */
+async function parseSpreadsheet(file) {
+  // Dynamically load SheetJS from CDN
+  if (!window.XLSX) {
+    await new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
   }
-  return rows.join("\n");
+  const XLSX = window.XLSX;
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array", cellDates: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  if (rows.length < 2) return [];
+
+  // Find header row — first row with at least 3 non-empty cells
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    if (rows[i].filter(c => String(c).trim()).length >= 3) { headerIdx = i; break; }
+  }
+  const headers = rows[headerIdx].map(h => String(h).toLowerCase().trim());
+
+  // Column detection
+  const col = (terms) => headers.findIndex(h => terms.some(t => h.includes(t)));
+  const dateIdx = col(["date"]);
+  const descIdx = col(["description","narration","details","reference","desc","particular","transaction"]);
+  const amtIdx  = col(["amount"]);
+  const credIdx = col(["credit","deposit","money in"]);
+  const debIdx  = col(["debit","withdrawal","money out"]);
+
+  if (dateIdx === -1 || descIdx === -1) return [];
+
+  const MN = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  const MNFull = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  const formatDate = (raw) => {
+    if (!raw) return null;
+    // Already a JS Date (SheetJS with cellDates:true)
+    if (raw instanceof Date && !isNaN(raw)) {
+      return `${String(raw.getDate()).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][raw.getMonth()]}`;
+    }
+    const s = String(raw).trim();
+    // DD/MM/YYYY or DD-MM-YYYY or YYYY-MM-DD
+    const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m1) { const d=parseInt(m1[1]),mo=parseInt(m1[2])-1; return `${String(d).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo]}`; }
+    const m2 = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+    if (m2) { const mo=parseInt(m2[2])-1,d=parseInt(m2[3]); return `${String(d).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo]}`; }
+    // "08 Dec 2025" or "Dec 08 2025"
+    const m3 = s.match(/(\d{1,2})\s+([A-Za-z]+)/);
+    if (m3) { const mo = MN.indexOf(m3[2].toLowerCase().slice(0,3)); if (mo !== -1) return `${String(parseInt(m3[1])).padStart(2,"0")} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo]}`; }
+    return s.slice(0, 10); // fallback
+  };
+
+  const parseAmt = (v) => {
+    if (v === "" || v === null || v === undefined) return 0;
+    if (typeof v === "number") return v;
+    // Strip currency symbols, spaces, but keep minus and digits
+    return parseFloat(String(v).replace(/[^\d.\-]/g, "")) || 0;
+  };
+
+  const results = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const dateRaw = row[dateIdx];
+    const desc = String(row[descIdx] || "").trim();
+    if (!desc || desc.toLowerCase() === "description") continue;
+
+    const dateStr = formatDate(dateRaw);
+    if (!dateStr) continue;
+
+    let amount = 0, isCredit = false;
+
+    if (credIdx !== -1 && debIdx !== -1) {
+      // Separate debit/credit columns
+      const cred = parseAmt(row[credIdx]);
+      const deb  = parseAmt(row[debIdx]);
+      if (Math.abs(cred) > 0) { amount = Math.abs(cred); isCredit = true; }
+      else if (Math.abs(deb) > 0) { amount = Math.abs(deb); isCredit = false; }
+      else continue;
+    } else if (amtIdx !== -1) {
+      // Single amount column — negative = debit, positive = credit
+      // Also handle "Cr" suffix meaning credit
+      const raw = String(row[amtIdx] || "").trim();
+      const hasCr = /cr$/i.test(raw);
+      const num = parseAmt(raw);
+      if (num === 0) continue;
+      if (hasCr) { amount = Math.abs(num); isCredit = true; }
+      else if (num < 0) { amount = Math.abs(num); isCredit = false; }
+      else { amount = num; isCredit = true; } // positive = credit in single-column statements
+    } else continue;
+
+    results.push(`${dateStr} ${desc} ${amount.toFixed(2)}${isCredit ? "Cr" : ""} 0.00`);
+  }
+  return results.join("\n");
 }
 
 function fmt(n, short = false) {
@@ -331,18 +400,52 @@ function ImportModal({ open, onClose, onImport }) {
     if (!file) return;
     setStatus("loading");
     try {
-      if (file.name.endsWith(".csv") || file.type === "text/csv") {
-        const text = await file.text();
-        onImport(parseCSV(text)); handleClose();
-      } else if (file.name.endsWith(".pdf") || file.type === "application/pdf") {
+      const isCSV  = file.name.endsWith(".csv") || file.type === "text/csv";
+      const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.type.includes("spreadsheet") || file.type.includes("excel");
+      const isPDF  = file.name.endsWith(".pdf") || file.type === "application/pdf";
+
+      if (isCSV || isExcel) {
+        const result = await parseSpreadsheet(file);
+        if (!result) { setStatus("error"); return; }
+        onImport(result); handleClose();
+      } else if (isPDF) {
         const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
-        const response = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 4000, messages: [{ role: "user", content: [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }, { type: "text", text: "Extract all transactions from this FNB bank statement. Return ONLY raw transaction lines in this format, one per line:\nDD Mon Description Amount.00Cr\nDD Mon Description Amount.00\nNo headers, no totals, no explanations." }] }] }) });
+        const response = await fetch("/api/claude", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4000,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+                { type: "text", text: `Extract every transaction from this bank statement and return them as a JSON array. Each item must have these fields:
+- date: "DD Mon" format e.g. "08 Dec"
+- description: the transaction description text
+- amount: numeric amount (positive number)
+- isCredit: true if it's money coming IN (deposit, payment received), false if money going OUT
+
+Return ONLY the JSON array, no other text. Example:
+[{"date":"08 Dec","description":"FNB App Payment From Payment","amount":7700,"isCredit":true},{"date":"08 Dec","description":"FNB App Transfer To Oto","amount":500,"isCredit":false}]` }
+              ]
+            }]
+          })
+        });
         const data = await response.json();
-        const extracted = data.content?.map(c => c.text || "").join("") || "";
-        if (!extracted.trim()) throw new Error("No transactions found");
-        onImport(extracted); handleClose();
+        const text = data.content?.map(c => c.text || "").join("") || "";
+        const clean = text.replace(/```json|```/g, "").trim();
+        let parsed;
+        try { parsed = JSON.parse(clean); } catch { throw new Error("Parse failed"); }
+        if (!parsed?.length) throw new Error("No transactions");
+        // Convert to the line format the statement parser expects
+        const lines = parsed.map(t =>
+          `${t.date} ${t.description} ${Number(t.amount).toFixed(2)}${t.isCredit ? "Cr" : ""} 0.00`
+        ).join("\n");
+        onImport(lines);
+        handleClose();
       } else { setStatus("error"); }
-    } catch { setStatus("error"); }
+    } catch (e) { console.error(e); setStatus("error"); }
   };
 
   if (!open) return null;
@@ -363,10 +466,10 @@ function ImportModal({ open, onClose, onImport }) {
               style={{ flex: 1, minHeight: 180, border: `2px dashed ${dragging ? "var(--red)" : "var(--cream-border)"}`, borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, cursor: "pointer", background: dragging ? "rgba(227,26,81,0.03)" : "var(--cream)", transition: "all 0.15s", padding: 32 }}>
               {status === "loading" ? <><div className="ai-spinner" style={{ width: 28, height: 28, borderWidth: 3 }} /><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#6366f1" }}>Extracting transactions…</div></>
               : status === "error" ? <><div style={{ fontSize: 32 }}>⚠️</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--red)", textAlign: "center", lineHeight: 1.5 }}>Could not read file. Try Paste Text instead.</div><button onClick={e => { e.stopPropagation(); setStatus(null); }} style={{ padding: "6px 14px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-mid)", cursor: "pointer" }}>Try again</button></>
-              : <><div style={{ fontSize: 36 }}>🗂️</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink)", textAlign: "center" }}>Drop your statement here</div><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", textAlign: "center", lineHeight: 1.7 }}>PDF or CSV · Click to browse</div></>}
+              : <><div style={{ fontSize: 36 }}>🗂️</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink)", textAlign: "center" }}>Drop your statement here</div><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", textAlign: "center", lineHeight: 1.7 }}>PDF · CSV · Excel (.xlsx) · Click to browse</div></>}
             </div>
-            <input ref={fileRef} type="file" accept=".pdf,.csv" onChange={e => { const f = e.target.files[0]; if (f) processFile(f); }} style={{ display: "none" }} />
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6, textAlign: "center" }}>PDF statements are read by Claude AI. CSV files are parsed directly.</p>
+            <input ref={fileRef} type="file" accept=".pdf,.csv,.xlsx,.xls" onChange={e => { const f = e.target.files[0]; if (f) processFile(f); }} style={{ display: "none" }} />
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6, textAlign: "center" }}>PDF statements read by Claude AI · CSV and Excel parsed directly</p>
           </div>
         )}
         {tab === "paste" && (
@@ -401,6 +504,95 @@ function PillTicker({ categories, catMap, activeCategory, setActiveCategory }) {
   );
 }
 
+/* ─── EDIT TRANSACTION MODAL ─── */
+function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
+  const [desc, setDesc] = useState(transaction.description);
+  const [amount, setAmount] = useState(String(transaction.amount));
+  const [isCredit, setIsCredit] = useState(transaction.isCredit);
+  const [dateStr, setDateStr] = useState(transaction.dateStr);
+  const [category, setCategory] = useState(transaction.manualCategory || transaction.category);
+
+  const MN = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+
+  const handleSave = () => {
+    const amt = parseFloat(amount.replace(/[^0-9.]/g, ""));
+    if (!amt || !desc.trim()) return;
+    // Rebuild date from dateStr e.g. "Dec 08" or "08 Dec"
+    const parts = dateStr.trim().split(" ");
+    let day, mon;
+    if (isNaN(parseInt(parts[0]))) { mon = parts[0]; day = parseInt(parts[1]); }
+    else { day = parseInt(parts[0]); mon = parts[1]; }
+    const monthIdx = MN[mon] ?? transaction.date.getMonth();
+    const year = transaction.date.getFullYear();
+    const newDate = new Date(year, monthIdx, day || transaction.date.getDate());
+    onSave({ ...transaction, description: desc.trim(), amount: amt, isCredit, dateStr: dateStr.trim(), date: newDate, manualCategory: category !== transaction.category ? category : transaction.manualCategory });
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 28, width: 420, zIndex: 101, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", gap: 16 }}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Edit Transaction</div>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "var(--ink-light)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+
+        {/* Description */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Description</label>
+          <input value={desc} onChange={e => setDesc(e.target.value)}
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+        </div>
+
+        {/* Amount + Credit/Debit toggle */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Amount</label>
+            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" step="0.01"
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+          </div>
+          <div style={{ display: "flex", gap: 4, padding: "3px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)" }}>
+            <button onClick={() => setIsCredit(false)} style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, background: !isCredit ? "#FFD6C2" : "transparent", color: !isCredit ? "#8B3A00" : "var(--ink-faint)", transition: "all 0.15s" }}>Debit</button>
+            <button onClick={() => setIsCredit(true)}  style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, background: isCredit  ? "#BFEFDF" : "transparent", color: isCredit  ? "#1A5C3A" : "var(--ink-faint)", transition: "all 0.15s" }}>Credit</button>
+          </div>
+        </div>
+
+        {/* Date */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Date</label>
+          <input value={dateStr} onChange={e => setDateStr(e.target.value)} placeholder="08 Dec"
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+        </div>
+
+        {/* Category */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Category</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, maxHeight: 200, overflowY: "auto" }}>
+            {categories.filter(c => c.name !== "Income" || isCredit).map(c => {
+              const cfg = catMap[c.name] || { color: "#7A756E", bg: "#7A756E18" };
+              const isActive = category === c.name;
+              return (
+                <button key={c.id} onClick={() => setCategory(c.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 8, border: `1px solid ${isActive ? cfg.color : "var(--cream-border)"}`, background: isActive ? cfg.bg : "transparent", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: isActive ? cfg.color : "var(--ink-mid)", transition: "all 0.1s" }}>
+                  {c.icon} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={handleSave} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── DASHBOARD PANEL ─── */
 function DashboardPanel({ userId, workspace, categories, catMap }) {
   const [statements, setStatements] = useState([]);
@@ -413,6 +605,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState(null);
   const [pickerTx, setPickerTx] = useState(null);
+  const [editTx, setEditTx] = useState(null);
   const [dbLoading, setDbLoading] = useState(true);
   const catNames = categories.map(c => c.name);
 
@@ -508,12 +701,37 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     setPickerTx(null);
   };
 
+  const handleEditSave = async (updated) => {
+    const stmtId = stmt?.id;
+    if (stmtId) {
+      await supabase.from("transactions").update({
+        description: updated.description,
+        amount: updated.amount,
+        is_credit: updated.isCredit,
+        date_str: updated.dateStr,
+        date: updated.date.toISOString(),
+        manual_category: updated.manualCategory,
+      }).eq("statement_id", stmtId).eq("local_id", updated.id);
+    }
+    setStatements(prev => prev.map((s, i) => i === activeStmt ? { ...s, transactions: s.transactions.map(t => t.id === updated.id ? { ...t, ...updated } : t) } : s));
+    setEditTx(null);
+  };
+
   const removeStatement = async (idx) => {
-    if (statements.length <= 1) return;
+    if (statements.length <= 1) { alert("You need at least one statement."); return; }
     const s = statements[idx];
-    await supabase.from("statements").delete().eq("id", s.id);
-    setStatements(prev => prev.filter((_, i) => i !== idx));
-    setActiveStmt(Math.max(0, activeStmt - 1));
+    if (!window.confirm(`Delete "${s.label}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("statements").delete().eq("id", s.id);
+    if (error) { alert("Delete failed — please try again."); return; }
+    setStatements(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      return next;
+    });
+    setActiveStmt(prev => {
+      if (idx < prev) return prev - 1;
+      if (idx === prev) return Math.max(0, prev - 1);
+      return prev;
+    });
   };
 
   const netPositive = summary.net >= 0;
@@ -649,7 +867,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
           {txView === "list" && (
             <div style={{ overflowY: "auto", maxHeight: 520 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "var(--cream)" }}>{[["Date","left"],["Description","left"],["Category","left"],["Amount","right"]].map(([h,align]) => <th key={h} style={{ padding:"10px 20px",textAlign:align,fontFamily:"'IBM Plex Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-faint)",borderBottom:"1px solid var(--cream-border)" }}>{h}</th>)}</tr></thead>
+                <thead><tr style={{ background: "var(--cream)" }}>{[["Date","left"],["Description","left"],["Category","left"],["Amount","right"],["","right"]].map(([h,align]) => <th key={h} style={{ padding:"10px 20px",textAlign:align,fontFamily:"'IBM Plex Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-faint)",borderBottom:"1px solid var(--cream-border)" }}>{h}</th>)}</tr></thead>
                 <tbody>
                   {filtered.map(t => { const cat=t.manualCategory||t.category; const cfg=catMap[cat]||{color:"#7A756E",bg:"#7A756E18",icon:"•"}; return (
                     <tr key={t.id} className="tx-row">
@@ -657,6 +875,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
                       <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.description}</td>
                       <td style={{ padding:"11px 20px" }}><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
                       <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--ink)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
+                      <td style={{ padding:"11px 12px 11px 4px",textAlign:"right",whiteSpace:"nowrap" }}>
+                        <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'IBM Plex Mono',monospace",fontSize:9,color:"var(--ink-faint)",letterSpacing:"0.04em",transition:"all 0.15s" }} title="Edit transaction">✎</button>
+                      </td>
                     </tr>
                   ); })}
                 </tbody>
@@ -730,6 +951,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
 
       <ImportModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} />
       {pickerTx && <CategoryPicker transaction={pickerTx} categories={categories} onSelect={handleManualCategory} onClose={() => setPickerTx(null)} />}
+      {editTx && <EditTxModal transaction={editTx} categories={categories} catMap={catMap} onSave={handleEditSave} onClose={() => setEditTx(null)} />}
       <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 40 }}>
         <button className="fab-import" onClick={() => setShowImport(true)} title="Import Statement"><span className="fab-icon">+</span><span className="fab-label">Import Statement</span></button>
       </div>
