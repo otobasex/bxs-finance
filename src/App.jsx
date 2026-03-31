@@ -102,6 +102,20 @@ function detectPeriodLabel(transactions) {
   return months.join(" – ");
 }
 
+// Sort statements chronologically by their earliest transaction date.
+// Statements with an explicit sort_order override the auto sort.
+function sortStatements(stmts) {
+  return [...stmts].sort((a, b) => {
+    // Explicit manual order takes priority if both have it
+    if (a.sortOrder != null && b.sortOrder != null) return a.sortOrder - b.sortOrder;
+    if (a.sortOrder != null) return -1;
+    if (b.sortOrder != null) return 1;
+    const aMin = a.transactions.length ? Math.min(...a.transactions.map(t => t.date.getTime())) : 0;
+    const bMin = b.transactions.length ? Math.min(...b.transactions.map(t => t.date.getTime())) : 0;
+    return aMin - bMin;
+  });
+}
+
 /* ─── UNIVERSAL SPREADSHEET PARSER (CSV + Excel via SheetJS) ─── */
 async function parseSpreadsheet(file) {
   if (!window.XLSX) {
@@ -390,25 +404,31 @@ function ImportModal({ open, onClose, onImport }) {
   const [tab, setTab] = useState("file");
   const [pasteText, setPasteText] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(null); // null | "reading" | "parsing" | "saving" | "error"
+  const [statusMsg, setStatusMsg] = useState("");
   const fileRef = useRef(null);
-  const reset = () => { setStatus(null); setPasteText(""); setTab("file"); };
+  const reset = () => { setStatus(null); setStatusMsg(""); setPasteText(""); setTab("file"); };
   const handleClose = () => { reset(); onClose(); };
 
   const processFile = async (file) => {
     if (!file) return;
-    setStatus("loading");
     try {
-      const isCSV  = file.name.endsWith(".csv") || file.type === "text/csv";
+      const isCSV   = file.name.endsWith(".csv") || file.type === "text/csv";
       const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.type.includes("spreadsheet") || file.type.includes("excel");
-      const isPDF  = file.name.endsWith(".pdf") || file.type === "application/pdf";
+      const isPDF   = file.name.endsWith(".pdf") || file.type === "application/pdf";
 
       if (isCSV || isExcel) {
+        setStatus("reading"); setStatusMsg("Reading spreadsheet…");
         const result = await parseSpreadsheet(file);
-        if (!result) { setStatus("error"); return; }
-        onImport(result); handleClose();
+        if (!result || !result.trim()) { setStatus("error"); setStatusMsg("No transactions found. Check the file has Date, Description and Amount columns."); return; }
+        setStatus("saving"); setStatusMsg("Saving transactions…");
+        onImport(result);
+        handleClose();
+
       } else if (isPDF) {
+        setStatus("reading"); setStatusMsg("Reading PDF…");
         const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
+        setStatus("parsing"); setStatusMsg("Claude is extracting transactions…");
         const response = await fetch("/api/claude", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -424,38 +444,67 @@ function ImportModal({ open, onClose, onImport }) {
 CRITICAL RULES for this FNB statement format:
 - If the Amount column shows a number with "Cr" at the end (e.g. "694.00Cr") → isCredit: true (money IN)
 - If the Amount column shows a number WITHOUT "Cr" (e.g. "107.00") → isCredit: false (money OUT / debit)
-- Skip rows where Description is empty or only contains "#" fee codes with no meaningful description
-- Include rows where Description starts with "#" only if they have a recognisable name (e.g. "#Service Fees #Int Pymt Fee-Apple.Com/B")
-- The Balance column should be IGNORED
+- Skip rows where Description is blank OR only a single number with no label
+- Skip rows starting with "#Debit Card POS Unsuccessful" or "#Debit Card Intl POS Unsuccess" — these are failed transactions
+- Include all successful purchases, transfers, payments, and fees
+- The Balance column must be IGNORED — do not include it as an amount
 
-Each item in the JSON array must have:
-- date: string in "DD Mon" format e.g. "08 Jan"
-- description: the transaction description text (cleaned, no extra whitespace)
-- amount: numeric amount as a positive number
-- isCredit: true if Cr suffix present, false if no Cr suffix
+Each item must have:
+- date: "DD Mon" e.g. "08 Jan"
+- description: cleaned description text
+- amount: positive number
+- isCredit: true if Cr suffix, false otherwise
 
-Return ONLY the JSON array, no other text, no markdown.
-
-Example output:
-[{"date":"07 Jan","description":"POS Purchase Uber","amount":107.00,"isCredit":false},{"date":"08 Jan","description":"FNB App Transfer From Oto","amount":694.00,"isCredit":true}]` }
+Return ONLY a JSON array, no markdown, no explanation.
+Example: [{"date":"07 Jan","description":"POS Purchase Uber","amount":107.00,"isCredit":false},{"date":"08 Jan","description":"FNB App Transfer From Oto","amount":694.00,"isCredit":true}]` }
               ]
             }]
           })
         });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error?.message || `API error ${response.status}`);
+        }
+
         const data = await response.json();
+        if (data.error) throw new Error(data.error.message || "API returned error");
+
         const text = data.content?.map(c => c.text || "").join("") || "";
-        const clean = text.replace(/```json|```/g, "").trim();
+        const clean = text.replace(/```json[\s\S]*?```|```/g, "").trim();
+        if (!clean) throw new Error("Empty response from Claude");
+
         let parsed;
-        try { parsed = JSON.parse(clean); } catch { throw new Error("Parse failed"); }
-        if (!parsed?.length) throw new Error("No transactions");
-        // Convert to the line format the statement parser expects
-        const lines = parsed.map(t =>
-          `${t.date} ${t.description} ${Number(t.amount).toFixed(2)}${t.isCredit ? "Cr" : ""} 0.00`
-        ).join("\n");
+        try { parsed = JSON.parse(clean); } catch {
+          // Try extracting JSON array if wrapped in other text
+          const match = clean.match(/\[[\s\S]*\]/);
+          if (match) { try { parsed = JSON.parse(match[0]); } catch { throw new Error("Could not parse Claude response"); } }
+          else throw new Error("No JSON array found in response");
+        }
+        if (!parsed?.length) throw new Error("No transactions extracted");
+
+        // Build transaction lines directly — no double-parse
+        const monthMap = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+        const lines = parsed.map(t => {
+          const parts = String(t.date || "").trim().split(" ");
+          const day = parseInt(parts[0]) || 1;
+          const mon = parts[1] || "Jan";
+          const monthIdx = monthMap[mon] ?? 0;
+          const year = monthIdx >= 10 ? 2025 : 2026;
+          return `${String(day).padStart(2,"0")} ${mon} ${String(t.description || "Unknown").trim()} ${Number(t.amount).toFixed(2)}${t.isCredit ? "Cr" : ""} 0.00`;
+        }).join("\n");
+
+        setStatus("saving"); setStatusMsg("Saving transactions…");
         onImport(lines);
         handleClose();
-      } else { setStatus("error"); }
-    } catch (e) { console.error(e); setStatus("error"); }
+
+      } else {
+        setStatus("error"); setStatusMsg("Unsupported file type. Use PDF, CSV or Excel (.xlsx).");
+      }
+    } catch (e) {
+      console.error("Import error:", e);
+      setStatus("error"); setStatusMsg(e.message || "Something went wrong. Try again or use Paste Text.");
+    }
   };
 
   if (!open) return null;
@@ -472,11 +521,31 @@ Example output:
         </div>
         {tab === "file" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-            <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); }} onClick={() => fileRef.current?.click()}
-              style={{ flex: 1, minHeight: 180, border: `2px dashed ${dragging ? "var(--red)" : "var(--cream-border)"}`, borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, cursor: "pointer", background: dragging ? "rgba(227,26,81,0.03)" : "var(--cream)", transition: "all 0.15s", padding: 32 }}>
-              {status === "loading" ? <><div className="ai-spinner" style={{ width: 28, height: 28, borderWidth: 3 }} /><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#6366f1" }}>Extracting transactions…</div></>
-              : status === "error" ? <><div style={{ fontSize: 32 }}>⚠️</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--red)", textAlign: "center", lineHeight: 1.5 }}>Could not read file. Try Paste Text instead.</div><button onClick={e => { e.stopPropagation(); setStatus(null); }} style={{ padding: "6px 14px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-mid)", cursor: "pointer" }}>Try again</button></>
-              : <><div style={{ fontSize: 36 }}>🗂️</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink)", textAlign: "center" }}>Drop your statement here</div><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", textAlign: "center", lineHeight: 1.7 }}>PDF · CSV · Excel (.xlsx) · Click to browse</div></>}
+            <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); }} onClick={() => !status && fileRef.current?.click()}
+              style={{ flex: 1, minHeight: 180, border: `2px dashed ${dragging ? "var(--red)" : status === "error" ? "rgba(227,26,81,0.35)" : "var(--cream-border)"}`, borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, cursor: status ? "default" : "pointer", background: dragging ? "rgba(227,26,81,0.03)" : "var(--cream)", transition: "all 0.15s", padding: 32 }}>
+              {(status === "reading" || status === "parsing" || status === "saving") ? (
+                <>
+                  <div className="ai-spinner" style={{ width: 28, height: 28, borderWidth: 3 }} />
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#6366f1", textAlign: "center" }}>{statusMsg}</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                    {["reading","parsing","saving"].map(step => (
+                      <div key={step} style={{ width: 6, height: 6, borderRadius: "50%", background: status === step ? "#6366f1" : "var(--cream-border)", transition: "background 0.3s" }} />
+                    ))}
+                  </div>
+                </>
+              ) : status === "error" ? (
+                <>
+                  <div style={{ fontSize: 28 }}>⚠️</div>
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--red)", textAlign: "center", lineHeight: 1.6, maxWidth: 320 }}>{statusMsg}</div>
+                  <button onClick={e => { e.stopPropagation(); reset(); }} style={{ padding: "6px 14px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-mid)", cursor: "pointer" }}>Try again</button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 36 }}>🗂️</div>
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink)", textAlign: "center" }}>Drop your statement here</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", textAlign: "center", lineHeight: 1.7 }}>PDF · CSV · Excel (.xlsx) · Click to browse</div>
+                </>
+              )}
             </div>
             <input ref={fileRef} type="file" accept=".pdf,.csv,.xlsx,.xls" onChange={e => { const f = e.target.files[0]; if (f) processFile(f); }} style={{ display: "none" }} />
             <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6, textAlign: "center" }}>PDF statements read by Claude AI · CSV and Excel parsed directly</p>
@@ -628,9 +697,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
       const results = await Promise.all(stmts.map(async s => {
         const { data: txs } = await supabase.from("transactions").select("*").eq("statement_id", s.id).order("local_id");
         const transactions = (txs || []).map(t => ({ ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str, isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category }));
-        return { id: s.id, label: s.label, transactions };
+        return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
       }));
-      setStatements(results);
+      setStatements(sortStatements(results));
       setDbLoading(false);
     };
     load();
@@ -665,9 +734,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     // Insert transactions
     const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
     await supabase.from("transactions").insert(txRows);
-    const newEntry = { id: newStmt.id, label, transactions: parsed };
+    const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
     const newIndex = statements.length;
-    setStatements(prev => [...prev, newEntry]);
+    setStatements(prev => sortStatements([...prev, newEntry]));
     setActiveStmt(newIndex);
     setShowImport(false); setAiStatus(null);
   };
@@ -713,20 +782,31 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
   };
 
   const removeStatement = async (idx) => {
-    if (statements.length <= 1) { alert("You need at least one statement."); return; }
     const s = statements[idx];
     if (!window.confirm(`Delete "${s.label}"? This cannot be undone.`)) return;
     const { error } = await supabase.from("statements").delete().eq("id", s.id);
     if (error) { alert("Delete failed — please try again."); return; }
-    setStatements(prev => {
-      const next = prev.filter((_, i) => i !== idx);
-      return next;
-    });
+    setStatements(prev => prev.filter((_, i) => i !== idx));
     setActiveStmt(prev => {
       if (idx < prev) return prev - 1;
       if (idx === prev) return Math.max(0, prev - 1);
       return prev;
     });
+  };
+
+  const moveStatement = async (idx, dir) => {
+    const next = idx + dir;
+    if (next < 0 || next >= statements.length) return;
+    const reordered = [...statements];
+    [reordered[idx], reordered[next]] = [reordered[next], reordered[idx]];
+    // Assign explicit sort_order positions and persist
+    const withOrder = reordered.map((s, i) => ({ ...s, sortOrder: i }));
+    setStatements(withOrder);
+    setActiveStmt(next);
+    // Persist to Supabase
+    await Promise.all(withOrder.map(s =>
+      supabase.from("statements").update({ sort_order: s.sortOrder }).eq("id", s.id)
+    ));
   };
 
   const netPositive = summary.net >= 0;
@@ -744,12 +824,21 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     <div style={{ position: "relative" }}>
       {/* Statement tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {statements.map((s, i) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 0, borderRadius: 100, border: `1px solid var(--cream-border)`, background: i === activeStmt ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s" }}>
-            <button onClick={() => { setActiveStmt(i); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: i === activeStmt ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
-            {statements.length > 1 && <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 0", background: "transparent", border: "none", cursor: "pointer", color: i === activeStmt ? "var(--ink-faint)" : "var(--cream-border)", fontSize: 11 }}>✕</button>}
-          </div>
-        ))}
+        {statements.map((s, i) => {
+          const isActive = i === activeStmt;
+          return (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: `1px solid ${isActive ? "var(--cream-border)" : "var(--cream-border)"}`, background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s" }}>
+              {isActive && statements.length > 1 && (
+                <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10, lineHeight: 1 }} title="Move left">‹</button>
+              )}
+              <button onClick={() => { setActiveStmt(i); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
+              {isActive && statements.length > 1 && (
+                <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10, lineHeight: 1 }} title="Move right">›</button>
+              )}
+              <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11, lineHeight: 1 }} title="Delete statement">✕</button>
+            </div>
+          );
+        })}
         <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, cursor: "pointer", letterSpacing: "0.05em" }}>+ Add</button>
       </div>
 
@@ -869,7 +958,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
                       <td style={{ padding:"11px 20px",fontFamily:"'IBM Plex Mono',monospace",fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap" }}>{t.dateStr}</td>
                       <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.description}</td>
                       <td style={{ padding:"11px 20px" }}><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
-                      <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--ink)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
+                      <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
                       <td style={{ padding:"11px 12px 11px 4px",textAlign:"right",whiteSpace:"nowrap" }}>
                         <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'IBM Plex Mono',monospace",fontSize:9,color:"var(--ink-faint)",letterSpacing:"0.04em",transition:"all 0.15s" }} title="Edit transaction">✎</button>
                       </td>
@@ -933,7 +1022,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
                       <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:"1px solid var(--cream-border)"}}>
                         <span style={{background:cfg.bg,color:cfg.color,padding:"2px 8px",borderRadius:100,fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{cfg.icon} {cat}</span>
                         <span style={{flex:1,fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.description}</span>
-                        <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--ink)",whiteSpace:"nowrap"}}>{t.isCredit?"+":"−"}{fmt(t.amount)}</span>
+                        <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap"}}>{t.isCredit?"+":"−"}{fmt(t.amount)}</span>
                       </div>
                     );})}
                   </div>
@@ -1094,7 +1183,7 @@ export default function App() {
         {/* HEADER */}
         <div className="fade-up" style={{ marginBottom: 28 }}>
           <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 32, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
-            <span style={{ color: "var(--red)", fontWeight: 700, textTransform: "uppercase" }}>{eyebrow}</span>
+            <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase" }}>{eyebrow}</span>
             <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
             <span>{accountLabel}</span>
             <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
