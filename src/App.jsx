@@ -348,90 +348,96 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
   const totalSpend  = monthData.reduce((s, m) => s + m.spend, 0);
 
   return (
-    <div style={{ background: "var(--charcoal)", borderRadius: "var(--r-xl)", padding: "24px 24px 20px", marginBottom: 14, position: "relative", overflow: "hidden" }}>
-      {/* bg grid lines */}
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "52px 24px 44px", pointerEvents: "none", zIndex: 0 }}>
-        {[0,1,2,3].map(i => <div key={i} style={{ width: "100%", height: "1px", background: "rgba(255,255,255,0.04)" }} />)}
+    <div style={{ background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "var(--r-xl)", padding: "20px 24px 16px", marginBottom: 14, position: "relative", overflow: "visible" }}>
+      {/* bg grid lines — full width, top to bottom */}
+      <div style={{ position: "absolute", left: 24, right: 24, top: 52, bottom: 40, pointerEvents: "none", zIndex: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        {[0,1,2,3,4].map(i => (
+          <div key={i} style={{ width: "100%", height: "1px", background: "rgba(0,0,0,0.06)" }} />
+        ))}
       </div>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, position: "relative", zIndex: 1 }}>
         <div>
           {/* FY Navigator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", color: canGoBack ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.15)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>‹</button>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", color: canGoBack ? "var(--ink-mid)" : "var(--cream-border)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>‹</button>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-light)" }}>
               Financial Year · {fyStartYear}/{fyStartYear + 1}
             </div>
-            <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", color: canGoFwd ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.15)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>›</button>
+            <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", color: canGoFwd ? "var(--ink-mid)" : "var(--cream-border)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>›</button>
           </div>
           <div style={{ display: "flex", gap: 20 }}>
             <div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Income  </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#22c55e" }}>{fmt(totalIncome, true)}</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Income  </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#16a34a" }}>{fmt(totalIncome, true)}</span>
             </div>
             <div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Spend  </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#F27067" }}>{fmt(totalSpend, true)}</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Spend  </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#E31A51" }}>{fmt(totalSpend, true)}</span>
             </div>
             <div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Net  </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: totalIncome - totalSpend >= 0 ? "#22c55e" : "#F27067" }}>{fmt(totalIncome - totalSpend, true)}</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Net  </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: totalIncome - totalSpend >= 0 ? "#16a34a" : "#E31A51" }}>{fmt(totalIncome - totalSpend, true)}</span>
             </div>
           </div>
         </div>
         {selectedMonth && (
-          <button onClick={() => onSelectMonth(null)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 100, padding: "4px 12px", color: "rgba(255,255,255,0.6)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
+          <button onClick={() => onSelectMonth(null)} style={{ background: "var(--cream)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: "4px 12px", color: "var(--ink-mid)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
             Clear ✕
           </button>
         )}
       </div>
 
       {/* Bars */}
-      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 100, position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 100, position: "relative", zIndex: 1 }}>
         {monthData.map((m, i) => {
           const isSelected = selectedMonth && selectedMonth.month === m.month && selectedMonth.year === m.year;
-          const incomeH = m.income > 0 ? Math.max((m.income / maxVal) * 100, 4) : 0;
-          const spendH  = m.spend  > 0 ? Math.max((m.spend  / maxVal) * 100, 4) : 0;
+          const incomeH = m.income > 0 ? Math.max((m.income / maxVal) * 100, 3) : 0;
+          const spendH  = m.spend  > 0 ? Math.max((m.spend  / maxVal) * 100, 3) : 0;
           const isEmpty = !m.hasTxs;
 
           return (
             <div
               key={i}
-              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", cursor: isEmpty ? "default" : "pointer", gap: 3 }}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", cursor: isEmpty ? "default" : "pointer", gap: 3, position: "relative" }}
               onClick={() => !isEmpty && onSelectMonth(isSelected ? null : m)}
               onMouseEnter={() => !isEmpty && setTooltip(i)}
               onMouseLeave={() => setTooltip(null)}
             >
               {/* Tooltip */}
               {tooltip === i && (
-                <div style={{ position: "absolute", bottom: "calc(100% - 30px)", left: "50%", transform: "translateX(-50%)", background: "#1C1917", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 12px", zIndex: 20, pointerEvents: "none", minWidth: 130, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+                <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "var(--ink)", border: "none", borderRadius: 10, padding: "10px 12px", zIndex: 20, pointerEvents: "none", minWidth: 130, boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}>
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>{m.label}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#22c55e", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#F27067", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: m.net >= 0 ? "#22c55e" : "#F27067", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 4, marginTop: 4 }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#4ade80", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#f87171", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: m.net >= 0 ? "#4ade80" : "#f87171", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 4, marginTop: 4 }}>
                     {m.net >= 0 ? "+" : ""}{fmt(m.net, true)}
                   </div>
                 </div>
               )}
 
-              {/* Bar pair */}
-              <div style={{ width: "100%", display: "flex", gap: 1, alignItems: "flex-end", height: 90, paddingBottom: 0 }}>
+              {/* Bar pair — thinner, brighter */}
+              <div style={{ width: "100%", display: "flex", gap: 1, alignItems: "flex-end", height: 90 }}>
                 {/* Income bar */}
                 <div style={{
-                  flex: 1, height: isEmpty ? 3 : `${incomeH}%`,
-                  background: isEmpty ? "rgba(255,255,255,0.06)" : isSelected ? "#22c55e" : "rgba(34,197,94,0.45)",
-                  borderRadius: "3px 3px 0 0",
-                  transition: "all 0.2s ease",
-                  minHeight: isEmpty ? 3 : undefined,
+                  flex: 1,
+                  height: isEmpty ? 2 : `${incomeH}%`,
+                  background: isEmpty ? "rgba(0,0,0,0.06)" : isSelected ? "#16a34a" : "#22c55e",
+                  borderRadius: "2px 2px 0 0",
+                  transition: "all 0.25s ease",
+                  opacity: isEmpty ? 1 : isSelected ? 1 : selectedMonth ? 0.35 : 0.85,
+                  minHeight: isEmpty ? 2 : undefined,
                 }} />
                 {/* Spend bar */}
                 <div style={{
-                  flex: 1, height: isEmpty ? 3 : `${spendH}%`,
-                  background: isEmpty ? "rgba(255,255,255,0.06)" : isSelected ? "#F27067" : "rgba(242,112,103,0.45)",
-                  borderRadius: "3px 3px 0 0",
-                  transition: "all 0.2s ease",
-                  minHeight: isEmpty ? 3 : undefined,
+                  flex: 1,
+                  height: isEmpty ? 2 : `${spendH}%`,
+                  background: isEmpty ? "rgba(0,0,0,0.06)" : isSelected ? "#E31A51" : "#f87171",
+                  borderRadius: "2px 2px 0 0",
+                  transition: "all 0.25s ease",
+                  opacity: isEmpty ? 1 : isSelected ? 1 : selectedMonth ? 0.35 : 0.85,
+                  minHeight: isEmpty ? 2 : undefined,
                 }} />
               </div>
 
@@ -439,7 +445,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
               <div style={{
                 fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 8, fontWeight: isSelected ? 700 : 400,
-                color: isSelected ? "white" : isEmpty ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.45)",
+                color: isSelected ? "var(--ink)" : isEmpty ? "var(--cream-border)" : "var(--ink-faint)",
                 letterSpacing: "0.04em", textTransform: "uppercase",
                 transition: "color 0.2s",
                 paddingTop: 4,
@@ -451,10 +457,10 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
         })}
       </div>
 
-      {/* Selected month label */}
+      {/* Selected month indicator */}
       {selectedMonth && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em" }}>
-          Showing  <span style={{ color: "white", fontWeight: 700 }}>{selectedMonth.label}</span>  below · Click bar again or Clear to see full year
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--cream-border)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>
+          Showing  <span style={{ color: "var(--ink)", fontWeight: 700 }}>{selectedMonth.label}</span>  below · Click bar again or Clear to see full year
         </div>
       )}
     </div>
@@ -950,19 +956,19 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
         {/* KPI CARDS — animate on change */}
         <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${navMode}-${selectedMonth?.label}-${customRange?.from}-${activeStmt}`}>
-          <div style={{ padding: "20px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 12 }}>Income</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{fmt(summary.income, true)}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 6 }}>{transactions.filter(t => t.isCredit).length} credits</div>
+          <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
           </div>
-          <div style={{ padding: "20px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 12 }}>Spend</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{fmt(summary.spend, true)}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 6 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
+          <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
           </div>
-          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "24px 28px", background: netPositive ? "var(--charcoal)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(13,11,9,0.14)" : "0 2px 24px rgba(192,57,43,0.25)" }}>
+          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 28px 18px", background: netPositive ? "var(--charcoal)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(13,11,9,0.14)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>{fmt(Math.abs(summary.net), true)}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
               <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
@@ -1276,7 +1282,10 @@ export default function App() {
             <span>{session.user.email}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--ink)", lineHeight: 1 }}>Financial Overview</div>
+            <div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 26, fontWeight: 900, letterSpacing: "-0.01em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
+              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: "var(--ink-light)", marginTop: 5, fontStyle: "italic" }}>Welcome to your financial dashboard.</div>
+            </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <div className="ws-toggle">
                 <button className={`ws-toggle-opt${isPro ? " active" : ""}`} onClick={() => setWorkspace("professional")} title="Professional">💼</button>
