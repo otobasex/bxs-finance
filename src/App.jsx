@@ -863,8 +863,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const contextLabel = useMemo(() => {
     if (navMode === "calendar") {
       if (selectedMonth) return selectedMonth.label;
-      const { startYear, endYear } = getFYLabel();
-      return `FY ${startYear}/${endYear} · All Months`;
+      const startYear = currentFYStartYear();
+      return `FY ${startYear}/${startYear + 1} · All Months`;
     }
     if (customRange) return `${customRange.from} → ${customRange.to}`;
     return (statements[activeStmt] || statements[0])?.label || "No statements";
