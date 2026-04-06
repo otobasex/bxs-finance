@@ -348,24 +348,28 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
   const totalSpend  = monthData.reduce((s, m) => s + m.spend, 0);
 
   return (
-    <div style={{ background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "var(--r-xl)", padding: "20px 24px 16px", marginBottom: 14, position: "relative", overflow: "visible" }}>
+    <div style={{ background: "#FDF8F5", border: "1px solid var(--cream-border)", borderRadius: "var(--r-xl)", padding: "20px 24px 16px", marginBottom: 14, position: "relative", overflow: "visible" }}>
       {/* bg grid lines — full width, top to bottom */}
       <div style={{ position: "absolute", left: 24, right: 24, top: 52, bottom: 40, pointerEvents: "none", zIndex: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         {[0,1,2,3,4].map(i => (
-          <div key={i} style={{ width: "100%", height: "1px", background: "rgba(0,0,0,0.06)" }} />
+          <div key={i} style={{ width: "100%", height: "1px", background: "rgba(0,0,0,0.05)" }} />
         ))}
       </div>
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, position: "relative", zIndex: 1 }}>
         <div>
-          {/* FY Navigator */}
+          {/* FY Navigator — triangle arrows */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", color: canGoBack ? "var(--ink-mid)" : "var(--cream-border)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>‹</button>
+            <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", padding: "0 2px", lineHeight: 1, transition: "opacity 0.15s", opacity: canGoBack ? 1 : 0.2 }}>
+              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill={canGoBack ? "var(--ink-mid)" : "var(--cream-border)"}/></svg>
+            </button>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-light)" }}>
-              Financial Year · {fyStartYear}/{fyStartYear + 1}
+              FY {fyStartYear}/{fyStartYear + 1}
             </div>
-            <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", color: canGoFwd ? "var(--ink-mid)" : "var(--cream-border)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>›</button>
+            <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", padding: "0 2px", lineHeight: 1, transition: "opacity 0.15s", opacity: canGoFwd ? 1 : 0.2 }}>
+              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill={canGoFwd ? "var(--ink-mid)" : "var(--cream-border)"}/></svg>
+            </button>
           </div>
           <div style={{ display: "flex", gap: 20 }}>
             <div>
@@ -383,61 +387,70 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
           </div>
         </div>
         {selectedMonth && (
-          <button onClick={() => onSelectMonth(null)} style={{ background: "var(--cream)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: "4px 12px", color: "var(--ink-mid)", fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
+          <button onClick={() => onSelectMonth(null)} style={{ background: "white", border: "1px solid var(--cream-border)", borderRadius: 100, padding: "4px 12px", color: "var(--ink-mid)", fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
             Clear ✕
           </button>
         )}
       </div>
 
       {/* Bars */}
-      <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 100, position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 110, position: "relative", zIndex: 1 }}>
         {monthData.map((m, i) => {
           const isSelected = selectedMonth && selectedMonth.month === m.month && selectedMonth.year === m.year;
-          const incomeH = m.income > 0 ? Math.max((m.income / maxVal) * 100, 3) : 0;
-          const spendH  = m.spend  > 0 ? Math.max((m.spend  / maxVal) * 100, 3) : 0;
+          const incomeH = m.income > 0 ? Math.max((m.income / maxVal) * 100, 4) : 0;
+          const spendH  = m.spend  > 0 ? Math.max((m.spend  / maxVal) * 100, 4) : 0;
           const isEmpty = !m.hasTxs;
+          const dimmed = selectedMonth && !isSelected;
 
           return (
             <div
               key={i}
-              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", cursor: isEmpty ? "default" : "pointer", gap: 3, position: "relative" }}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", cursor: isEmpty ? "default" : "pointer", position: "relative" }}
               onClick={() => !isEmpty && onSelectMonth(isSelected ? null : m)}
               onMouseEnter={() => !isEmpty && setTooltip(i)}
               onMouseLeave={() => setTooltip(null)}
             >
               {/* Tooltip */}
               {tooltip === i && (
-                <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "var(--ink)", border: "none", borderRadius: 10, padding: "10px 12px", zIndex: 20, pointerEvents: "none", minWidth: 130, boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}>
-                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>{m.label}</div>
-                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#4ade80", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
-                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#f87171", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
-                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: m.net >= 0 ? "#4ade80" : "#f87171", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 4, marginTop: 4 }}>
+                <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "var(--ink)", borderRadius: 10, padding: "10px 12px", zIndex: 20, pointerEvents: "none", minWidth: 130, boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>{m.label}</div>
+                  <div style={{ fontSize: 10, color: "#8EEC7C", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
+                  <div style={{ fontSize: 10, color: "#FF9F99", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
+                  <div style={{ fontSize: 10, color: m.net >= 0 ? "#8EEC7C" : "#FF9F99", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 4, marginTop: 4 }}>
                     {m.net >= 0 ? "+" : ""}{fmt(m.net, true)}
                   </div>
                 </div>
               )}
 
-              {/* Bar pair — thinner, brighter */}
-              <div style={{ width: "100%", display: "flex", gap: 1, alignItems: "flex-end", height: 90 }}>
+              {/* Bar pair — thin pill bars with gradient */}
+              <div style={{ width: "100%", display: "flex", gap: 2, alignItems: "flex-end", height: 96, paddingBottom: 0 }}>
                 {/* Income bar */}
                 <div style={{
                   flex: 1,
-                  height: isEmpty ? 2 : `${incomeH}%`,
-                  background: isEmpty ? "rgba(0,0,0,0.06)" : isSelected ? "#16a34a" : "#22c55e",
-                  borderRadius: "2px 2px 0 0",
-                  transition: "all 0.25s ease",
-                  opacity: isEmpty ? 1 : isSelected ? 1 : selectedMonth ? 0.35 : 0.85,
-                  minHeight: isEmpty ? 2 : undefined,
+                  maxWidth: 10,
+                  margin: "0 auto",
+                  height: isEmpty ? 3 : `${incomeH}%`,
+                  background: isEmpty
+                    ? "rgba(0,0,0,0.06)"
+                    : "linear-gradient(to bottom, #8EEC7C, #C0EFDE)",
+                  borderRadius: 100,
+                  transition: "all 0.3s ease",
+                  opacity: isEmpty ? 1 : dimmed ? 0.25 : 1,
+                  minHeight: isEmpty ? 3 : undefined,
                 }} />
                 {/* Spend bar */}
                 <div style={{
                   flex: 1,
-                  height: isEmpty ? 2 : `${spendH}%`,
-                  background: isEmpty ? "rgba(0,0,0,0.06)" : isSelected ? "#E31A51" : "#f87171",
-                  borderRadius: "2px 2px 0 0",
-                  transition: "all 0.25s ease",
-                  opacity: isEmpty ? 1 : isSelected ? 1 : selectedMonth ? 0.35 : 0.85,
-                  minHeight: isEmpty ? 2 : undefined,
+                  maxWidth: 10,
+                  margin: "0 auto",
+                  height: isEmpty ? 3 : `${spendH}%`,
+                  background: isEmpty
+                    ? "rgba(0,0,0,0.06)"
+                    : "linear-gradient(to bottom, #FF9F99, #FFCECD)",
+                  borderRadius: 100,
+                  transition: "all 0.3s ease",
+                  opacity: isEmpty ? 1 : dimmed ? 0.25 : 1,
+                  minHeight: isEmpty ? 3 : undefined,
                 }} />
               </div>
 
@@ -445,10 +458,11 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
               <div style={{
                 fontFamily: "'Inter', sans-serif",
                 fontSize: 8, fontWeight: isSelected ? 700 : 400,
-                color: isSelected ? "var(--ink)" : isEmpty ? "var(--cream-border)" : "var(--ink-faint)",
-                letterSpacing: "0.04em", textTransform: "uppercase",
+                color: isSelected ? "var(--ink)" : isEmpty ? "rgba(0,0,0,0.15)" : "var(--ink-faint)",
+                letterSpacing: "0.06em", textTransform: "uppercase",
                 transition: "color 0.2s",
-                paddingTop: 4,
+                paddingTop: 6,
+                whiteSpace: "nowrap",
               }}>
                 {ALL_MONTHS[m.month].slice(0,3)}
               </div>
@@ -1431,8 +1445,8 @@ export default function App() {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
             <div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 26, fontWeight: 900, letterSpacing: "-0.01em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
-              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: "var(--ink-light)", marginTop: 5, fontStyle: "italic" }}>Welcome to your financial dashboard.</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 32, fontWeight: 900, letterSpacing: "-0.02em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
+              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, fontWeight: 400, color: "var(--ink-light)", marginTop: 6 }}>Welcome to your financial dashboard.</div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {/* View toggle */}
