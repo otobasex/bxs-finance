@@ -24,6 +24,29 @@ function buildCatMap(cats) {
   return m;
 }
 
+/* ─── FY MONTHS: March → February ─── */
+const FY_MONTHS = ["Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb"];
+const ALL_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function getFYLabel() {
+  const now = new Date();
+  const m = now.getMonth(); // 0-indexed
+  const y = now.getFullYear();
+  // FY starts March: if month >= 2 (Mar) then FY is y/y+1, else y-1/y
+  const startYear = m >= 2 ? y : y - 1;
+  return { startYear, endYear: startYear + 1 };
+}
+
+function getFYMonths() {
+  // Returns array of { month (0-indexed), year, label } in FY order Mar→Feb
+  const { startYear } = getFYLabel();
+  return FY_MONTHS.map(mn => {
+    const monthIdx = ALL_MONTHS.indexOf(mn);
+    const year = monthIdx >= 2 ? startYear : startYear + 1;
+    return { month: monthIdx, year, label: `${mn} ${year}` };
+  });
+}
+
 /* ─── FALLBACK CATEGORISER ─── */
 function categoriseFallback(description, isCredit, catNames) {
   const d = description.toLowerCase();
@@ -102,11 +125,8 @@ function detectPeriodLabel(transactions) {
   return months.join(" – ");
 }
 
-// Sort statements chronologically by their earliest transaction date.
-// Statements with an explicit sort_order override the auto sort.
 function sortStatements(stmts) {
   return [...stmts].sort((a, b) => {
-    // Explicit manual order takes priority if both have it
     if (a.sortOrder != null && b.sortOrder != null) return a.sortOrder - b.sortOrder;
     if (a.sortOrder != null) return -1;
     if (b.sortOrder != null) return 1;
@@ -116,7 +136,7 @@ function sortStatements(stmts) {
   });
 }
 
-/* ─── UNIVERSAL SPREADSHEET PARSER (CSV + Excel via SheetJS) ─── */
+/* ─── SPREADSHEET PARSER ─── */
 async function parseSpreadsheet(file) {
   if (!window.XLSX) {
     await new Promise((res, rej) => {
@@ -130,29 +150,21 @@ async function parseSpreadsheet(file) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  // raw: keep strings as-is so "694.00Cr" is preserved
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
   if (rows.length < 2) return [];
-
   const MNS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
   const formatDate = (raw) => {
     if (!raw) return null;
     if (raw instanceof Date && !isNaN(raw)) return `${String(raw.getDate()).padStart(2,"0")} ${MNS[raw.getMonth()]}`;
     const s = String(raw).trim();
-    // Already "07 Jan" or "Jan 07"
     const m0 = s.match(/^(\d{1,2})\s+([A-Za-z]{3})/);
     if (m0) { const mo = MNS.findIndex(m => m.toLowerCase() === m0[2].toLowerCase()); if (mo !== -1) return `${String(parseInt(m0[1])).padStart(2,"0")} ${MNS[mo]}`; }
-    // DD/MM/YYYY or DD-MM-YYYY
     const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
     if (m1) { const d=parseInt(m1[1]),mo=parseInt(m1[2])-1; if(mo>=0&&mo<12) return `${String(d).padStart(2,"0")} ${MNS[mo]}`; }
-    // YYYY-MM-DD
     const m2 = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
     if (m2) { const mo=parseInt(m2[2])-1,d=parseInt(m2[3]); if(mo>=0&&mo<12) return `${String(d).padStart(2,"0")} ${MNS[mo]}`; }
     return null;
   };
-
-  // Find header row — look for a row containing "date" and "amount" or "description"
   let headerIdx = -1;
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const cells = rows[i].map(c => String(c).toLowerCase().trim());
@@ -162,21 +174,15 @@ async function parseSpreadsheet(file) {
     if (hasDate && (hasAmt || hasDesc)) { headerIdx = i; break; }
   }
   if (headerIdx === -1) return [];
-
   const headers = rows[headerIdx].map(h => String(h).toLowerCase().trim());
   const col = (terms) => headers.findIndex(h => terms.some(t => h.includes(t)));
-
   const dateIdx = col(["date"]);
   const descIdx = col(["description","narration","details","reference","particular","transaction","desc"]);
   const amtIdx  = col(["amount"]);
   const credIdx = col(["credit","deposit","money in"]);
   const debIdx  = col(["debit","withdrawal","money out"]);
-
   if (dateIdx === -1) return [];
-
-  // If no desc column found, try column 2 (FNB export fallback)
   const resolvedDescIdx = descIdx !== -1 ? descIdx : 2;
-
   const results = [];
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
@@ -184,11 +190,8 @@ async function parseSpreadsheet(file) {
     const desc = String(row[resolvedDescIdx] || "").trim();
     const dateStr = formatDate(dateRaw);
     if (!dateStr || !desc || desc.toLowerCase() === "description") continue;
-
     let amount = 0, isCredit = false;
-
     if (credIdx !== -1 && debIdx !== -1) {
-      // Two separate columns: credit | debit
       const credRaw = String(row[credIdx] || "").replace(/[^\d.]/g, "");
       const debRaw  = String(row[debIdx]  || "").replace(/[^\d.]/g, "");
       const cred = parseFloat(credRaw) || 0;
@@ -197,17 +200,14 @@ async function parseSpreadsheet(file) {
       else if (deb > 0) { amount = deb; isCredit = false; }
       else continue;
     } else if (amtIdx !== -1) {
-      // Single amount column — FNB format: "694.00Cr" = credit, "107.00" = debit
       const raw = String(row[amtIdx] || "").trim();
       if (!raw) continue;
       const hasCr = /cr$/i.test(raw);
       const num = parseFloat(raw.replace(/[^\d.\-]/g, "")) || 0;
       if (num === 0) continue;
-      // KEY FNB RULE: Cr suffix = credit; no suffix = debit (regardless of sign)
       isCredit = hasCr;
       amount = Math.abs(num);
     } else continue;
-
     if (amount === 0) continue;
     results.push(`${dateStr} ${desc} ${amount.toFixed(2)}${isCredit ? "Cr" : ""} 0.00`);
   }
@@ -219,361 +219,150 @@ function fmt(n, short = false) {
   return "R\u00A0" + n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/* ─── LOGIN SCREEN ─── */
-function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("login"); // "login" | "signup"
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
+/* ─── YEAR CHART ─── */
+function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
+  const [tooltip, setTooltip] = useState(null);
+  const fyMonths = getFYMonths();
 
-  const handleGoogle = async () => {
-    setLoading(true); setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin }
+  const monthData = useMemo(() => {
+    return fyMonths.map(({ month, year, label }) => {
+      const txs = allTransactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === month && d.getFullYear() === year;
+      });
+      const income = txs.filter(t => t.isCredit).reduce((s, t) => s + t.amount, 0);
+      const spend  = txs.filter(t => !t.isCredit).reduce((s, t) => s + t.amount, 0);
+      return { month, year, label, income, spend, net: income - spend, hasTxs: txs.length > 0 };
     });
-    if (error) { setError(error.message); setLoading(false); }
-  };
+  }, [allTransactions]);
 
-  const handleEmail = async () => {
-    if (!email || !password) { setError("Please enter your email and password."); return; }
-    setLoading(true); setError(null);
-    if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) setError(error.message);
-      else setMessage("Check your email for a confirmation link.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError("Incorrect email or password.");
-    }
-    setLoading(false);
-  };
+  const maxVal = Math.max(...monthData.map(m => Math.max(m.income, m.spend)), 1);
+  const totalIncome = monthData.reduce((s, m) => s + m.income, 0);
+  const totalSpend  = monthData.reduce((s, m) => s + m.spend, 0);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
-        {/* Logo */}
-        <div style={{ marginBottom: 40, textAlign: "center" }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#E31A51", marginBottom: 10 }}>Base X Studio</div>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 900, fontSize: 28, letterSpacing: "-0.03em", textTransform: "uppercase", color: "#0A0A0A" }}>Financial<br />Dashboard</div>
-        </div>
-
-        {/* Card */}
-        <div style={{ background: "#F5F5F5", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 24, padding: 32, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.4)", marginBottom: 4 }}>
-            {mode === "login" ? "Sign in to your account" : "Create your account"}
-          </div>
-
-          {/* Google */}
-          <button onClick={handleGoogle} disabled={loading} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 12, border: "1.5px solid rgba(0,0,0,0.10)", background: "white", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600, color: "#0A0A0A", transition: "all 0.15s" }}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg>
-            Continue with Google
-          </button>
-
-          {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
-            <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.3)" }}>or</span>
-            <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
-          </div>
-
-          {/* Email + password */}
-          <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email address"
-            style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "white", fontFamily: "'Inter', sans-serif", fontSize: 14, color: "#0A0A0A", outline: "none" }} />
-          <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleEmail()} type="password" placeholder="Password"
-            style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "white", fontFamily: "'Inter', sans-serif", fontSize: 14, color: "#0A0A0A", outline: "none" }} />
-
-          {error && <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#E31A51", padding: "8px 12px", background: "rgba(227,26,81,0.06)", borderRadius: 8 }}>{error}</div>}
-          {message && <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#14b8a6", padding: "8px 12px", background: "rgba(20,184,166,0.06)", borderRadius: 8 }}>{message}</div>}
-
-          <button onClick={handleEmail} disabled={loading} style={{ padding: "13px", borderRadius: 100, background: "linear-gradient(135deg, #E31A51, #FF5C7A)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 12px rgba(227,26,81,0.3)", marginTop: 4 }}>
-            {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
-          </button>
-
-          <div style={{ textAlign: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 4 }}>
-            {mode === "login" ? (
-              <span>No account? <button onClick={() => { setMode("signup"); setError(null); }} style={{ background: "none", border: "none", color: "#E31A51", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", fontWeight: 700 }}>Sign up</button></span>
-            ) : (
-              <span>Have an account? <button onClick={() => { setMode("login"); setError(null); }} style={{ background: "none", border: "none", color: "#E31A51", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", fontWeight: 700 }}>Sign in</button></span>
-            )}
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: 20, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.25)", letterSpacing: "0.06em" }}>
-          Private access only · Base X Studio 2026
-        </div>
+    <div style={{ background: "var(--charcoal)", borderRadius: "var(--r-xl)", padding: "24px 24px 20px", marginBottom: 14, position: "relative", overflow: "hidden" }}>
+      {/* bg grid lines */}
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "52px 24px 44px", pointerEvents: "none", zIndex: 0 }}>
+        {[0,1,2,3].map(i => <div key={i} style={{ width: "100%", height: "1px", background: "rgba(255,255,255,0.04)" }} />)}
       </div>
-    </div>
-  );
-}
 
-/* ─── CATEGORY MANAGER ─── */
-function CategoryManager({ categories, onSave, onClose }) {
-  const [cats, setCats] = useState(categories.map(c => ({ ...c })));
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [reassignTo, setReassignTo] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [newName, setNewName] = useState(""); const [newColor, setNewColor] = useState("#6366f1"); const [newIcon, setNewIcon] = useState("•");
-  const [adding, setAdding] = useState(false);
-  const confirmDelete = (cat) => { if (cat.name === "Other") return; setDeleteTarget(cat); setReassignTo(cats.find(c => c.id !== cat.id && c.name !== "Income")?.name || "Other"); };
-  const doDelete = () => { if (!deleteTarget) return; onSave(cats.filter(c => c.id !== deleteTarget.id), deleteTarget.name, reassignTo); setDeleteTarget(null); };
-  const doAdd = () => { if (!newName.trim()) return; const id = newName.toLowerCase().replace(/\s+/g,"_")+"_"+Date.now(); setCats(prev => [...prev, { id, name: newName.trim(), color: newColor, icon: newIcon }]); setNewName(""); setNewColor("#6366f1"); setNewIcon("•"); setAdding(false); };
-  const updateCat = (id, field, val) => setCats(prev => prev.map(c => c.id === id ? { ...c, [field]: val } : c));
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)" }} />
-      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 28, width: 500, maxHeight: "85vh", overflowY: "auto", zIndex: 201, boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-          <div><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--red)", marginBottom: 4 }}>Settings</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Manage Categories</div></div>
-          <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          {cats.map(cat => (
-            <div key={cat.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)" }}>
-              <input type="color" value={cat.color} onChange={e => updateCat(cat.id, "color", e.target.value)} style={{ width: 24, height: 24, border: "none", borderRadius: 6, cursor: "pointer", padding: 0 }} />
-              {editId === cat.id ? <input value={cat.name} onChange={e => updateCat(cat.id, "name", e.target.value)} onBlur={() => setEditId(null)} autoFocus style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, background: "white", border: "1px solid var(--cream-border)", borderRadius: 6, padding: "3px 8px", color: "var(--ink)", outline: "none" }} />
-              : <span onClick={() => setEditId(cat.id)} style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", cursor: "text" }}><span style={{ marginRight: 6 }}>{cat.icon}</span>{cat.name}</span>}
-              <input value={cat.icon} onChange={e => updateCat(cat.id, "icon", e.target.value)} maxLength={2} style={{ width: 36, textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 14, background: "white", border: "1px solid var(--cream-border)", borderRadius: 6, padding: "3px 4px", color: "var(--ink)", outline: "none" }} />
-              {cat.name !== "Income" && cat.name !== "Other" && <button onClick={() => confirmDelete(cat)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: 14, padding: "2px 4px" }}>✕</button>}
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, position: "relative", zIndex: 1 }}>
+        <div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            Financial Year · {getFYLabel().startYear}/{getFYLabel().endYear}
+          </div>
+          <div style={{ display: "flex", gap: 20 }}>
+            <div>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Income  </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#22c55e" }}>{fmt(totalIncome, true)}</span>
             </div>
-          ))}
-        </div>
-        {adding ? (
-          <div style={{ padding: 12, borderRadius: 10, border: "1px dashed var(--cream-border)", background: "var(--cream)", marginBottom: 12 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-              <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} style={{ width: 24, height: 24, border: "none", borderRadius: 6, cursor: "pointer", padding: 0 }} />
-              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Category name" autoFocus style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, background: "white", border: "1px solid var(--cream-border)", borderRadius: 6, padding: "6px 10px", color: "var(--ink)", outline: "none" }} />
-              <input value={newIcon} onChange={e => setNewIcon(e.target.value)} maxLength={2} placeholder="•" style={{ width: 40, textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 14, background: "white", border: "1px solid var(--cream-border)", borderRadius: 6, padding: "6px 4px", color: "var(--ink)", outline: "none" }} />
+            <div>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Spend  </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#F27067" }}>{fmt(totalSpend, true)}</span>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={doAdd} style={{ flex: 1, padding: "7px", background: "var(--charcoal)", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700 }}>Add</button>
-              <button onClick={() => setAdding(false)} style={{ padding: "7px 14px", background: "transparent", color: "var(--ink-faint)", border: "1px solid var(--cream-border)", borderRadius: 8, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>Cancel</button>
+            <div>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Net  </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: totalIncome - totalSpend >= 0 ? "#22c55e" : "#F27067" }}>{fmt(totalIncome - totalSpend, true)}</span>
             </div>
           </div>
-        ) : <button onClick={() => setAdding(true)} style={{ width: "100%", padding: "9px", background: "transparent", color: "var(--ink-mid)", border: "1.5px dashed var(--cream-border)", borderRadius: 10, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.06em", marginBottom: 12 }}>+ Add Category</button>}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "9px 18px", background: "transparent", color: "var(--ink-mid)", border: "1px solid var(--cream-border)", borderRadius: 100, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>Cancel</button>
-          <button onClick={() => onSave(cats, null, null)} style={{ padding: "9px 20px", background: "var(--charcoal)", color: "white", border: "none", borderRadius: 100, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700 }}>Save Changes</button>
         </div>
-        {deleteTarget && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
-            <div style={{ background: "var(--cream-card)", borderRadius: 14, padding: 24, width: 320 }}>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>Delete "{deleteTarget.name}"?</div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink-mid)", marginBottom: 16, lineHeight: 1.5 }}>Transactions will be reassigned to:</div>
-              <select value={reassignTo} onChange={e => setReassignTo(e.target.value)} style={{ width: "100%", padding: "8px 12px", marginBottom: 16, background: "var(--cream)", border: "1px solid var(--cream-border)", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }}>
-                {cats.filter(c => c.id !== deleteTarget.id && c.name !== "Income").map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
-              </select>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setDeleteTarget(null)} style={{ flex: 1, padding: "8px", background: "transparent", border: "1px solid var(--cream-border)", borderRadius: 8, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)" }}>Cancel</button>
-                <button onClick={doDelete} style={{ flex: 1, padding: "8px", background: "#E31A51", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700 }}>Delete & Reassign</button>
+        {selectedMonth && (
+          <button onClick={() => onSelectMonth(null)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 100, padding: "4px 12px", color: "rgba(255,255,255,0.6)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
+            Clear ✕
+          </button>
+        )}
+      </div>
+
+      {/* Bars */}
+      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 100, position: "relative", zIndex: 1 }}>
+        {monthData.map((m, i) => {
+          const isSelected = selectedMonth && selectedMonth.month === m.month && selectedMonth.year === m.year;
+          const incomeH = m.income > 0 ? Math.max((m.income / maxVal) * 100, 4) : 0;
+          const spendH  = m.spend  > 0 ? Math.max((m.spend  / maxVal) * 100, 4) : 0;
+          const isEmpty = !m.hasTxs;
+
+          return (
+            <div
+              key={i}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", cursor: isEmpty ? "default" : "pointer", gap: 3 }}
+              onClick={() => !isEmpty && onSelectMonth(isSelected ? null : m)}
+              onMouseEnter={() => !isEmpty && setTooltip(i)}
+              onMouseLeave={() => setTooltip(null)}
+            >
+              {/* Tooltip */}
+              {tooltip === i && (
+                <div style={{ position: "absolute", bottom: "calc(100% - 30px)", left: "50%", transform: "translateX(-50%)", background: "#1C1917", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 12px", zIndex: 20, pointerEvents: "none", minWidth: 130, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>{m.label}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#22c55e", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#F27067", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: m.net >= 0 ? "#22c55e" : "#F27067", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 4, marginTop: 4 }}>
+                    {m.net >= 0 ? "+" : ""}{fmt(m.net, true)}
+                  </div>
+                </div>
+              )}
+
+              {/* Bar pair */}
+              <div style={{ width: "100%", display: "flex", gap: 1, alignItems: "flex-end", height: 90, paddingBottom: 0 }}>
+                {/* Income bar */}
+                <div style={{
+                  flex: 1, height: isEmpty ? 3 : `${incomeH}%`,
+                  background: isEmpty ? "rgba(255,255,255,0.06)" : isSelected ? "#22c55e" : "rgba(34,197,94,0.45)",
+                  borderRadius: "3px 3px 0 0",
+                  transition: "all 0.2s ease",
+                  minHeight: isEmpty ? 3 : undefined,
+                }} />
+                {/* Spend bar */}
+                <div style={{
+                  flex: 1, height: isEmpty ? 3 : `${spendH}%`,
+                  background: isEmpty ? "rgba(255,255,255,0.06)" : isSelected ? "#F27067" : "rgba(242,112,103,0.45)",
+                  borderRadius: "3px 3px 0 0",
+                  transition: "all 0.2s ease",
+                  minHeight: isEmpty ? 3 : undefined,
+                }} />
+              </div>
+
+              {/* Month label */}
+              <div style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 8, fontWeight: isSelected ? 700 : 400,
+                color: isSelected ? "white" : isEmpty ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.45)",
+                letterSpacing: "0.04em", textTransform: "uppercase",
+                transition: "color 0.2s",
+                paddingTop: 4,
+              }}>
+                {ALL_MONTHS[m.month].slice(0,3)}
               </div>
             </div>
-          </div>
-        )}
+          );
+        })}
       </div>
-    </div>
-  );
-}
 
-/* ─── CATEGORY PICKER ─── */
-function CategoryPicker({ transaction, categories, onSelect, onClose }) {
-  const catMap = buildCatMap(categories);
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} />
-      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 16, padding: 24, width: 340, zIndex: 101, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Re-categorise</div>
-        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink-mid)", marginBottom: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{transaction.description}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, maxHeight: 320, overflowY: "auto" }}>
-          {categories.filter(c => c.name !== "Income").map(cat => {
-            const cfg = catMap[cat.name] || { color: "#7A756E", bg: "#7A756E18" };
-            const isActive = (transaction.manualCategory || transaction.category) === cat.name;
-            return <button key={cat.id} onClick={() => onSelect(cat.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 8, border: `1px solid ${isActive ? cfg.color : "var(--cream-border)"}`, background: isActive ? cfg.bg : "transparent", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: isActive ? cfg.color : "var(--ink-mid)" }}><span>{cat.icon}</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.name}</span></button>;
-          })}
+      {/* Selected month label */}
+      {selectedMonth && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em" }}>
+          Showing  <span style={{ color: "white", fontWeight: 700 }}>{selectedMonth.label}</span>  below · Click bar again or Clear to see full year
         </div>
-        <button onClick={onClose} style={{ marginTop: 14, width: "100%", padding: "8px", borderRadius: 8, border: "1px solid var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, cursor: "pointer" }}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── IMPORT MODAL ─── */
-function ImportModal({ open, onClose, onImport }) {
-  const [tab, setTab] = useState("file");
-  const [pasteText, setPasteText] = useState("");
-  const [dragging, setDragging] = useState(false);
-  const [status, setStatus] = useState(null); // null | "reading" | "parsing" | "saving" | "error"
-  const [statusMsg, setStatusMsg] = useState("");
-  const fileRef = useRef(null);
-  const reset = () => { setStatus(null); setStatusMsg(""); setPasteText(""); setTab("file"); };
-  const handleClose = () => { reset(); onClose(); };
-
-  const processFile = async (file) => {
-    if (!file) return;
-    try {
-      const isCSV   = file.name.endsWith(".csv") || file.type === "text/csv";
-      const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.type.includes("spreadsheet") || file.type.includes("excel");
-      const isPDF   = file.name.endsWith(".pdf") || file.type === "application/pdf";
-
-      if (isCSV || isExcel) {
-        setStatus("reading"); setStatusMsg("Reading spreadsheet…");
-        const result = await parseSpreadsheet(file);
-        if (!result || !result.trim()) { setStatus("error"); setStatusMsg("No transactions found. Check the file has Date, Description and Amount columns."); return; }
-        setStatus("saving"); setStatusMsg("Saving transactions…");
-        onImport(result);
-        handleClose();
-
-      } else if (isPDF) {
-        setStatus("reading"); setStatusMsg("Reading PDF…");
-        const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
-        setStatus("parsing"); setStatusMsg("Claude is extracting transactions…");
-        const response = await fetch("/api/claude", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 8000,
-            messages: [{
-              role: "user",
-              content: [
-                { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-                { type: "text", text: `Extract every transaction from this FNB bank statement and return them as a JSON array.
-
-CRITICAL RULES for this FNB statement format:
-- If the Amount column shows a number with "Cr" at the end (e.g. "694.00Cr") → isCredit: true (money IN)
-- If the Amount column shows a number WITHOUT "Cr" (e.g. "107.00") → isCredit: false (money OUT / debit)
-- Skip rows where Description is blank OR only a single number with no label
-- Skip rows starting with "#Debit Card POS Unsuccessful" or "#Debit Card Intl POS Unsuccess" — these are failed transactions
-- Include all successful purchases, transfers, payments, and fees
-- The Balance column must be IGNORED — do not include it as an amount
-
-Each item must have:
-- date: "DD Mon" e.g. "08 Jan"
-- description: cleaned description text
-- amount: positive number
-- isCredit: true if Cr suffix, false otherwise
-
-Return ONLY a JSON array, no markdown, no explanation.
-Example: [{"date":"07 Jan","description":"POS Purchase Uber","amount":107.00,"isCredit":false},{"date":"08 Jan","description":"FNB App Transfer From Oto","amount":694.00,"isCredit":true}]` }
-              ]
-            }]
-          })
-        });
-
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error?.message || `API error ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message || "API returned error");
-
-        const text = data.content?.map(c => c.text || "").join("") || "";
-        const clean = text.replace(/```json[\s\S]*?```|```/g, "").trim();
-        if (!clean) throw new Error("Empty response from Claude");
-
-        let parsed;
-        try { parsed = JSON.parse(clean); } catch {
-          // Try extracting JSON array if wrapped in other text
-          const match = clean.match(/\[[\s\S]*\]/);
-          if (match) { try { parsed = JSON.parse(match[0]); } catch { throw new Error("Could not parse Claude response"); } }
-          else throw new Error("No JSON array found in response");
-        }
-        if (!parsed?.length) throw new Error("No transactions extracted");
-
-        // Build transaction lines directly — no double-parse
-        const monthMap = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
-        const lines = parsed.map(t => {
-          const parts = String(t.date || "").trim().split(" ");
-          const day = parseInt(parts[0]) || 1;
-          const mon = parts[1] || "Jan";
-          const monthIdx = monthMap[mon] ?? 0;
-          const year = monthIdx >= 10 ? 2025 : 2026;
-          return `${String(day).padStart(2,"0")} ${mon} ${String(t.description || "Unknown").trim()} ${Number(t.amount).toFixed(2)}${t.isCredit ? "Cr" : ""} 0.00`;
-        }).join("\n");
-
-        setStatus("saving"); setStatusMsg("Saving transactions…");
-        onImport(lines);
-        handleClose();
-
-      } else {
-        setStatus("error"); setStatusMsg("Unsupported file type. Use PDF, CSV or Excel (.xlsx).");
-      }
-    } catch (e) {
-      console.error("Import error:", e);
-      setStatus("error"); setStatusMsg(e.message || "Something went wrong. Try again or use Paste Text.");
-    }
-  };
-
-  if (!open) return null;
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={handleClose} style={{ position: "absolute", inset: 0, background: "rgba(13,11,9,0.35)", backdropFilter: "blur(3px)" }} />
-      <div style={{ position: "relative", width: 480, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 32, display: "flex", flexDirection: "column", gap: 20, boxShadow: "0 24px 80px rgba(0,0,0,0.18)", maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div><div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--red)", marginBottom: 6 }}>Import</div><div style={{ fontFamily: "'Inter', sans-serif", fontSize: 20, fontWeight: 600, color: "var(--ink)" }}>Add Statement</div></div>
-          <button onClick={handleClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "var(--ink-light)", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-        </div>
-        <div style={{ display: "flex", gap: 4, background: "var(--cream)", borderRadius: 10, padding: 4 }}>
-          {[["file","Upload File"],["paste","Paste Text"]].map(([v,lbl]) => <button key={v} onClick={() => { setTab(v); setStatus(null); }} style={{ flex: 1, padding: "7px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", background: tab === v ? "var(--cream-card)" : "transparent", color: tab === v ? "var(--ink)" : "var(--ink-faint)", boxShadow: tab === v ? "0 1px 3px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{lbl}</button>)}
-        </div>
-        {tab === "file" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-            <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); }} onClick={() => !status && fileRef.current?.click()}
-              style={{ flex: 1, minHeight: 180, border: `2px dashed ${dragging ? "var(--red)" : status === "error" ? "rgba(227,26,81,0.35)" : "var(--cream-border)"}`, borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, cursor: status ? "default" : "pointer", background: dragging ? "rgba(227,26,81,0.03)" : "var(--cream)", transition: "all 0.15s", padding: 32 }}>
-              {(status === "reading" || status === "parsing" || status === "saving") ? (
-                <>
-                  <div className="ai-spinner" style={{ width: 28, height: 28, borderWidth: 3 }} />
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#6366f1", textAlign: "center" }}>{statusMsg}</div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                    {["reading","parsing","saving"].map(step => (
-                      <div key={step} style={{ width: 6, height: 6, borderRadius: "50%", background: status === step ? "#6366f1" : "var(--cream-border)", transition: "background 0.3s" }} />
-                    ))}
-                  </div>
-                </>
-              ) : status === "error" ? (
-                <>
-                  <div style={{ fontSize: 28 }}>⚠️</div>
-                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--red)", textAlign: "center", lineHeight: 1.6, maxWidth: 320 }}>{statusMsg}</div>
-                  <button onClick={e => { e.stopPropagation(); reset(); }} style={{ padding: "6px 14px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-mid)", cursor: "pointer" }}>Try again</button>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 36 }}>🗂️</div>
-                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink)", textAlign: "center" }}>Drop your statement here</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", textAlign: "center", lineHeight: 1.7 }}>PDF · CSV · Excel (.xlsx) · Click to browse</div>
-                </>
-              )}
-            </div>
-            <input ref={fileRef} type="file" accept=".pdf,.csv,.xlsx,.xls" onChange={e => { const f = e.target.files[0]; if (f) processFile(f); }} style={{ display: "none" }} />
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6, textAlign: "center" }}>PDF statements read by Claude AI · CSV and Excel parsed directly</p>
-          </div>
-        )}
-        {tab === "paste" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink-light)", lineHeight: 1.6 }}>Open your FNB statement PDF, select all text (Ctrl+A), copy, then paste below.</p>
-            <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="08 Dec FNB App Transfer To Oto 500.00 ..." rows={14} style={{ flex: 1, resize: "none", padding: "13px 16px", background: "white", border: "1px solid var(--cream-border)", borderRadius: 12, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink)", outline: "none", lineHeight: 1.7 }} />
-            <button onClick={() => { onImport(pasteText); handleClose(); }} style={{ background: "var(--grad)", color: "white", border: "none", borderRadius: 100, padding: "12px 22px", fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Parse & Add Statement</button>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
 /* ─── PILL TICKER ─── */
 function PillTicker({ categories, catMap, activeCategory, setActiveCategory }) {
-  const wrapRef = useRef(null); const trackRef = useRef(null);
+  const trackRef = useRef(null);
   const drag = useRef({ active: false, startX: 0, scrollLeft: 0 });
-  const [manualOffset, setManualOffset] = useState(0); const [isDragging, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [manualOffset, setManualOffset] = useState(0);
   const pills = [...categories, ...categories];
-  const startDrag = useCallback((clientX) => { const track = trackRef.current; if (track) { const m = window.getComputedStyle(track).transform.match(/matrix.*\((.+)\)/); if (m) drag.current.scrollLeft = parseFloat(m[1].split(', ')[4]) || 0; } drag.current = { ...drag.current, active: true, startX: clientX }; setIsDragging(true); }, []);
-  const moveDrag = useCallback((clientX) => { if (!drag.current.active) return; let next = drag.current.scrollLeft + (clientX - drag.current.startX); const track = trackRef.current; if (track) { const hw = track.scrollWidth / 2; if (next < -hw) next += hw; if (next > 0) next -= hw; } setManualOffset(next); }, []);
-  const endDrag = useCallback(() => { drag.current.active = false; setIsDragging(false); }, []);
+  const onDown = useCallback(e => { drag.current = { active: true, startX: e.clientX, startOffset: manualOffset }; setIsDragging(true); }, [manualOffset]);
+  const onMove = useCallback(e => { if (!drag.current.active) return; const dx = e.clientX - drag.current.startX; setManualOffset(drag.current.startOffset + dx); }, []);
+  const onUp = useCallback(() => { drag.current.active = false; setIsDragging(false); }, []);
+  useEffect(() => { window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp); return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); }; }, [onMove, onUp]);
+  if (!categories.length) return null;
   return (
-    <div ref={wrapRef} className={`pill-ticker-wrap${isDragging ? " dragging" : ""}`} onMouseDown={e => { e.preventDefault(); startDrag(e.clientX); }} onMouseMove={e => { if (drag.current.active) moveDrag(e.clientX); }} onMouseUp={endDrag} onMouseLeave={() => { if (drag.current.active) endDrag(); }} onTouchStart={e => startDrag(e.touches[0].clientX)} onTouchMove={e => moveDrag(e.touches[0].clientX)} onTouchEnd={endDrag}>
+    <div className={`pill-ticker-wrap${isDragging ? " dragging" : ""}`} onMouseDown={onDown}>
       <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to right, var(--cream-card), transparent)", zIndex: 2, pointerEvents: "none" }} />
       <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to left, var(--cream-card), transparent)", zIndex: 2, pointerEvents: "none" }} />
       <div ref={trackRef} className="pill-ticker-track" style={isDragging ? { transform: `translateX(${manualOffset}px)`, animation: "none" } : undefined}>
@@ -590,13 +379,10 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
   const [isCredit, setIsCredit] = useState(transaction.isCredit);
   const [dateStr, setDateStr] = useState(transaction.dateStr);
   const [category, setCategory] = useState(transaction.manualCategory || transaction.category);
-
   const MN = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
-
   const handleSave = () => {
     const amt = parseFloat(amount.replace(/[^0-9.]/g, ""));
     if (!amt || !desc.trim()) return;
-    // Rebuild date from dateStr e.g. "Dec 08" or "08 Dec"
     const parts = dateStr.trim().split(" ");
     let day, mon;
     if (isNaN(parseInt(parts[0]))) { mon = parts[0]; day = parseInt(parts[1]); }
@@ -606,47 +392,32 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
     const newDate = new Date(year, monthIdx, day || transaction.date.getDate());
     onSave({ ...transaction, description: desc.trim(), amount: amt, isCredit, dateStr: dateStr.trim(), date: newDate, manualCategory: category !== transaction.category ? category : transaction.manualCategory });
   };
-
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 28, width: 420, zIndex: 101, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", gap: 16 }}>
-
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Edit Transaction</div>
-          </div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Edit Transaction</div>
           <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "var(--ink-light)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
-
-        {/* Description */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Description</label>
-          <input value={desc} onChange={e => setDesc(e.target.value)}
-            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+          <input value={desc} onChange={e => setDesc(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
         </div>
-
-        {/* Amount + Credit/Debit toggle */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Amount</label>
-            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" step="0.01"
-              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" step="0.01" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
           </div>
           <div style={{ display: "flex", gap: 4, padding: "3px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)" }}>
             <button onClick={() => setIsCredit(false)} style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, background: !isCredit ? "#FFD6C2" : "transparent", color: !isCredit ? "#8B3A00" : "var(--ink-faint)", transition: "all 0.15s" }}>Debit</button>
             <button onClick={() => setIsCredit(true)}  style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, background: isCredit  ? "#BFEFDF" : "transparent", color: isCredit  ? "#1A5C3A" : "var(--ink-faint)", transition: "all 0.15s" }}>Credit</button>
           </div>
         </div>
-
-        {/* Date */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Date</label>
-          <input value={dateStr} onChange={e => setDateStr(e.target.value)} placeholder="08 Dec"
-            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+          <input value={dateStr} onChange={e => setDateStr(e.target.value)} placeholder="08 Dec" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: "var(--ink)", outline: "none" }} />
         </div>
-
-        {/* Category */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Category</label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, maxHeight: 200, overflowY: "auto" }}>
@@ -661,8 +432,6 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
             })}
           </div>
         </div>
-
-        {/* Actions */}
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
           <button onClick={handleSave} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
@@ -672,23 +441,184 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
   );
 }
 
+/* ─── IMPORT MODAL (kept from original) ─── */
+function ImportModal({ open, onClose, onImport }) {
+  const [text, setText] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [processing, setProcessing] = useState(false);
+
+  const processFile = async (file) => {
+    setProcessing(true);
+    setFileName(file.name);
+    try {
+      const ext = file.name.split(".").pop().toLowerCase();
+      if (ext === "csv" || ext === "xlsx" || ext === "xls") {
+        const result = await parseSpreadsheet(file);
+        setText(Array.isArray(result) ? result.join("\n") : result);
+      } else {
+        const t = await file.text();
+        setText(t);
+      }
+    } catch { setText(""); alert("Could not read file."); }
+    setProcessing(false);
+  };
+
+  if (!open) return null;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(3px)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 32, width: 520, maxWidth: "95vw", zIndex: 101, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Import Statement</div>
+          <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+        <div
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={async e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) await processFile(f); }}
+          style={{ border: `2px dashed ${dragging ? "var(--red)" : "var(--cream-border)"}`, borderRadius: 14, padding: "28px 20px", textAlign: "center", transition: "all 0.15s", background: dragging ? "rgba(227,26,81,0.04)" : "var(--cream)", cursor: "pointer" }}
+          onClick={() => document.getElementById("file-input-hidden").click()}
+        >
+          <input id="file-input-hidden" type="file" accept=".txt,.csv,.xlsx,.xls" style={{ display: "none" }} onChange={async e => { const f = e.target.files[0]; if (f) await processFile(f); }} />
+          {processing ? (
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Processing…</div>
+          ) : fileName ? (
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", fontWeight: 600 }}>📄 {fileName}</div>
+          ) : (
+            <>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Drop file or click to browse</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", marginTop: 4, opacity: 0.6 }}>TXT · CSV · XLSX · XLS</div>
+            </>
+          )}
+        </div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Or paste statement text</div>
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={6} placeholder="Paste your bank statement text here…" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.7, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--cream-border)", background: "var(--cream)", color: "var(--ink)", resize: "vertical", outline: "none" }} />
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => { if (text.trim()) { onImport(text); setText(""); setFileName(""); } }} disabled={!text.trim()} style={{ flex: 2, padding: "11px", borderRadius: 100, background: text.trim() ? "var(--grad)" : "var(--cream-border)", border: "none", color: text.trim() ? "white" : "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: text.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>Import Statement</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CATEGORY PICKER ─── */
+function CategoryPicker({ transaction, categories, onSelect, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 24, width: 360, zIndex: 101, boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Re-categorise</div>
+        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink-mid)", marginBottom: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{transaction.description}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {categories.filter(c => c.name !== "Income").map(c => (
+            <button key={c.id} onClick={() => onSelect(c.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: "var(--ink-mid)", transition: "all 0.1s" }}>
+              {c.icon} {c.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CATEGORY MANAGER ─── */
+function CategoryManager({ categories, onSave, onClose }) {
+  const [cats, setCats] = useState(categories.map(c => ({ ...c })));
+  const [deletedName, setDeletedName] = useState(null);
+  const [reassignTo, setReassignTo] = useState(null);
+  const ICONS = ["↓","→","🍔","✈","⚡","📱","▶","🏦","🏛","🛍","🏠","💼","•","🎓","🏥","🚗","💇","🎮","📦","🍷","🏋","🐾"];
+  const add = () => setCats(prev => [...prev, { id: `cat_${Date.now()}`, name: "New Category", color: "#7A756E", icon: "•" }]);
+  const remove = (id) => {
+    const cat = cats.find(c => c.id === id);
+    if (!cat) return;
+    setDeletedName(cat.name);
+    setReassignTo(cats.find(c => c.id !== id)?.name || null);
+    setCats(prev => prev.filter(c => c.id !== id));
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(3px)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 28, width: 480, maxWidth: "95vw", maxHeight: "80vh", overflow: "auto", zIndex: 201, boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Manage Categories</div>
+          <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {cats.map(c => (
+            <div key={c.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 12px", borderRadius: 12, background: "var(--cream)", border: "1px solid var(--cream-border)" }}>
+              <select value={c.icon} onChange={e => setCats(prev => prev.map(x => x.id === c.id ? { ...x, icon: e.target.value } : x))} style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", outline: "none" }}>
+                {ICONS.map(ic => <option key={ic} value={ic}>{ic}</option>)}
+              </select>
+              <input value={c.name} onChange={e => setCats(prev => prev.map(x => x.id === c.id ? { ...x, name: e.target.value } : x))} style={{ flex: 1, background: "transparent", border: "none", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+              <input type="color" value={c.color} onChange={e => setCats(prev => prev.map(x => x.id === c.id ? { ...x, color: e.target.value } : x))} style={{ width: 28, height: 28, padding: 2, border: "1px solid var(--cream-border)", borderRadius: 6, cursor: "pointer", background: "transparent" }} />
+              <button onClick={() => remove(c.id)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: 16, padding: "0 4px" }}>✕</button>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={add} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)", cursor: "pointer" }}>+ Add Category</button>
+          <button onClick={() => onSave(cats, deletedName, reassignTo)} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CUSTOM DATE RANGE PICKER ─── */
+function CustomRangePicker({ onApply, onClose }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState("");
+  const [to, setTo]   = useState(today);
+  const canApply = from && to && from <= to;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 28, width: 360, zIndex: 101, boxShadow: "0 16px 48px rgba(0,0,0,0.16)", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Custom Date Range</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>From</label>
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "var(--ink)", outline: "none" }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>To</label>
+          <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "var(--ink)", outline: "none" }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => canApply && onApply(from, to)} disabled={!canApply} style={{ flex: 2, padding: "10px", borderRadius: 100, background: canApply ? "var(--charcoal)" : "var(--cream-border)", border: "none", color: canApply ? "white" : "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: canApply ? "pointer" : "not-allowed" }}>Apply Range</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── DASHBOARD PANEL ─── */
-function DashboardPanel({ userId, workspace, categories, catMap }) {
-  const [statements, setStatements] = useState([]);
-  const [activeStmt, setActiveStmt] = useState(0);
+function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
+  const [statements, setStatements]     = useState([]);
+  const [activeStmt, setActiveStmt]     = useState(0);
   const [activeCategory, setActiveCategory] = useState(null);
-  const [search, setSearch] = useState("");
-  const [showImport, setShowImport] = useState(false);
-  const [txView, setTxView] = useState("list");
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiStatus, setAiStatus] = useState(null);
-  const [pickerTx, setPickerTx] = useState(null);
-  const [editTx, setEditTx] = useState(null);
-  const [dbLoading, setDbLoading] = useState(true);
+  const [search, setSearch]             = useState("");
+  const [showImport, setShowImport]     = useState(false);
+  const [txView, setTxView]             = useState("list");
+  const [selectedDay, setSelectedDay]   = useState(null);
+  const [aiLoading, setAiLoading]       = useState(false);
+  const [aiStatus, setAiStatus]         = useState(null);
+  const [pickerTx, setPickerTx]         = useState(null);
+  const [editTx, setEditTx]             = useState(null);
+  const [dbLoading, setDbLoading]       = useState(true);
+
+  // Navigation mode
+  const [navMode, setNavMode]           = useState("calendar"); // "calendar" | "statement"
+  const [selectedMonth, setSelectedMonth] = useState(null);    // { month, year, label }
+  const [customRange, setCustomRange]   = useState(null);      // { from, to } ISO strings
+  const [showCustomRange, setShowCustomRange] = useState(false);
+
   const catNames = categories.map(c => c.name);
 
-  /* Load statements from Supabase */
+  /* Load statements */
   useEffect(() => {
     const load = async () => {
       setDbLoading(true);
@@ -705,8 +635,28 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     load();
   }, [userId, workspace]);
 
-  const stmt = statements[activeStmt] || statements[0];
-  const transactions = stmt?.transactions || [];
+  /* All transactions flat (for calendar mode) */
+  const allTransactions = useMemo(() => statements.flatMap(s => s.transactions), [statements]);
+
+  /* Active transaction set based on nav mode */
+  const transactions = useMemo(() => {
+    if (navMode === "statement") {
+      if (customRange) {
+        const from = new Date(customRange.from);
+        const to   = new Date(customRange.to + "T23:59:59");
+        return allTransactions.filter(t => new Date(t.date) >= from && new Date(t.date) <= to);
+      }
+      return (statements[activeStmt] || statements[0])?.transactions || [];
+    }
+    // Calendar mode
+    if (selectedMonth) {
+      return allTransactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === selectedMonth.month && d.getFullYear() === selectedMonth.year;
+      });
+    }
+    return allTransactions; // no month selected = full year aggregate
+  }, [navMode, statements, activeStmt, allTransactions, selectedMonth, customRange]);
 
   const summary = useMemo(() => {
     const income = transactions.filter(t => t.isCredit).reduce((s, t) => s + t.amount, 0);
@@ -723,30 +673,27 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     return true;
   }), [transactions, activeCategory, search]);
 
-  /* Import handler — saves to Supabase */
+  /* Import */
   const handleImport = async (text) => {
     const parsed = parseStatement(text, catNames);
     if (!parsed.length) { alert("No transactions found."); return; }
     const label = detectPeriodLabel(parsed);
-    // Insert statement
     const { data: newStmt } = await supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single();
     if (!newStmt) { alert("Failed to save statement."); return; }
-    // Insert transactions
     const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
     await supabase.from("transactions").insert(txRows);
     const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
-    const newIndex = statements.length;
     setStatements(prev => sortStatements([...prev, newEntry]));
-    setActiveStmt(newIndex);
+    setActiveStmt(statements.length);
     setShowImport(false); setAiStatus(null);
   };
 
   const handleAICategorise = async () => {
     setAiLoading(true); setAiStatus(null);
     try {
-      const updated = await categoriseWithAI(transactions, catNames);
-      // Save to DB
-      const stmtId = stmt?.id;
+      const stmtTransactions = navMode === "statement" ? transactions : (statements[activeStmt] || statements[0])?.transactions || [];
+      const updated = await categoriseWithAI(stmtTransactions, catNames);
+      const stmtId = (statements[activeStmt] || statements[0])?.id;
       if (stmtId) {
         for (const t of updated) {
           await supabase.from("transactions").update({ category: t.category, ai_categorised: t.aiCategorised }).eq("statement_id", stmtId).eq("local_id", t.id);
@@ -759,25 +706,21 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
 
   const handleManualCategory = async (cat) => {
     if (!pickerTx) return;
-    const stmtId = stmt?.id;
+    const stmtId = statements.find(s => s.transactions.some(t => t.id === pickerTx.id))?.id;
     if (stmtId) await supabase.from("transactions").update({ manual_category: cat }).eq("statement_id", stmtId).eq("local_id", pickerTx.id);
-    setStatements(prev => prev.map((s, i) => i === activeStmt ? { ...s, transactions: s.transactions.map(t => t.id === pickerTx.id ? { ...t, manualCategory: cat } : t) } : s));
+    setStatements(prev => prev.map(s => ({ ...s, transactions: s.transactions.map(t => t.id === pickerTx.id ? { ...t, manualCategory: cat } : t) })));
     setPickerTx(null);
   };
 
   const handleEditSave = async (updated) => {
-    const stmtId = stmt?.id;
+    const stmtId = statements.find(s => s.transactions.some(t => t.id === updated.id))?.id;
     if (stmtId) {
       await supabase.from("transactions").update({
-        description: updated.description,
-        amount: updated.amount,
-        is_credit: updated.isCredit,
-        date_str: updated.dateStr,
-        date: updated.date.toISOString(),
-        manual_category: updated.manualCategory,
+        description: updated.description, amount: updated.amount, is_credit: updated.isCredit,
+        date_str: updated.dateStr, date: updated.date.toISOString(), manual_category: updated.manualCategory,
       }).eq("statement_id", stmtId).eq("local_id", updated.id);
     }
-    setStatements(prev => prev.map((s, i) => i === activeStmt ? { ...s, transactions: s.transactions.map(t => t.id === updated.id ? { ...t, ...updated } : t) } : s));
+    setStatements(prev => prev.map(s => ({ ...s, transactions: s.transactions.map(t => t.id === updated.id ? { ...t, ...updated } : t) })));
     setEditTx(null);
   };
 
@@ -785,13 +728,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     const s = statements[idx];
     if (!window.confirm(`Delete "${s.label}"? This cannot be undone.`)) return;
     const { error } = await supabase.from("statements").delete().eq("id", s.id);
-    if (error) { alert("Delete failed — please try again."); return; }
+    if (error) { alert("Delete failed."); return; }
     setStatements(prev => prev.filter((_, i) => i !== idx));
-    setActiveStmt(prev => {
-      if (idx < prev) return prev - 1;
-      if (idx === prev) return Math.max(0, prev - 1);
-      return prev;
-    });
+    setActiveStmt(prev => { if (idx < prev) return prev - 1; if (idx === prev) return Math.max(0, prev - 1); return prev; });
   };
 
   const moveStatement = async (idx, dir) => {
@@ -799,19 +738,25 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
     if (next < 0 || next >= statements.length) return;
     const reordered = [...statements];
     [reordered[idx], reordered[next]] = [reordered[next], reordered[idx]];
-    // Assign explicit sort_order positions and persist
     const withOrder = reordered.map((s, i) => ({ ...s, sortOrder: i }));
-    setStatements(withOrder);
-    setActiveStmt(next);
-    // Persist to Supabase
-    await Promise.all(withOrder.map(s =>
-      supabase.from("statements").update({ sort_order: s.sortOrder }).eq("id", s.id)
-    ));
+    setStatements(withOrder); setActiveStmt(next);
+    await Promise.all(withOrder.map(s => supabase.from("statements").update({ sort_order: s.sortOrder }).eq("id", s.id)));
   };
 
   const netPositive = summary.net >= 0;
   const aiCount = transactions.filter(t => t.aiCategorised).length;
   const manualCount = transactions.filter(t => t.manualCategory).length;
+
+  // Label for what's currently shown
+  const contextLabel = useMemo(() => {
+    if (navMode === "calendar") {
+      if (selectedMonth) return selectedMonth.label;
+      const { startYear, endYear } = getFYLabel();
+      return `FY ${startYear}/${endYear} · All Months`;
+    }
+    if (customRange) return `${customRange.from} → ${customRange.to}`;
+    return (statements[activeStmt] || statements[0])?.label || "No statements";
+  }, [navMode, selectedMonth, statements, activeStmt, customRange]);
 
   if (dbLoading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 80, gap: 12 }}>
@@ -822,27 +767,57 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Statement tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {statements.map((s, i) => {
-          const isActive = i === activeStmt;
-          return (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: `1px solid ${isActive ? "var(--cream-border)" : "var(--cream-border)"}`, background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s" }}>
-              {isActive && statements.length > 1 && (
-                <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10, lineHeight: 1 }} title="Move left">‹</button>
-              )}
-              <button onClick={() => { setActiveStmt(i); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
-              {isActive && statements.length > 1 && (
-                <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10, lineHeight: 1 }} title="Move right">›</button>
-              )}
-              <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11, lineHeight: 1 }} title="Delete statement">✕</button>
-            </div>
-          );
-        })}
-        <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, cursor: "pointer", letterSpacing: "0.05em" }}>+ Add</button>
+
+      {/* ── NAV MODE TOGGLE ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2 }}>
+          {[["calendar","📅 Calendar"],["statement","🗂 Statement"]].map(([mode, label]) => (
+            <button key={mode} onClick={() => { setNavMode(mode); setSelectedMonth(null); setCustomRange(null); setActiveCategory(null); setSearch(""); }} style={{ padding: "5px 14px", borderRadius: 100, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", background: navMode === mode ? "var(--charcoal)" : "transparent", color: navMode === mode ? "white" : "var(--ink-faint)", transition: "all 0.2s" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", paddingLeft: 4 }}>{contextLabel}</div>
       </div>
 
-      {!statements.length && !dbLoading && (
+      {/* ── CALENDAR MODE: YEAR CHART ── */}
+      {navMode === "calendar" && statements.length > 0 && (
+        <YearChart
+          allTransactions={allTransactions}
+          selectedMonth={selectedMonth}
+          onSelectMonth={m => { setSelectedMonth(m); setActiveCategory(null); setSearch(""); }}
+          dark={dark}
+        />
+      )}
+
+      {/* ── STATEMENT MODE: PERIOD TABS ── */}
+      {navMode === "statement" && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+          {statements.map((s, i) => {
+            const isActive = !customRange && i === activeStmt;
+            return (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: "1px solid var(--cream-border)", background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s" }}>
+                {isActive && statements.length > 1 && (
+                  <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
+                )}
+                <button onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
+                {isActive && statements.length > 1 && (
+                  <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
+                )}
+                <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11 }}>✕</button>
+              </div>
+            );
+          })}
+          {/* Custom range button */}
+          <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+            {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
+          </button>
+          {customRange && <button onClick={() => setCustomRange(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
+          <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, cursor: "pointer" }}>+ Add</button>
+        </div>
+      )}
+
+      {!statements.length && (
         <div style={{ textAlign: "center", padding: "80px 24px", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: "0.06em" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>🗂️</div>
           No statements yet.<br />
@@ -861,8 +836,8 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
           </div>
         )}
 
-        {/* TOP BENTO */}
-        <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }}>
+        {/* KPI CARDS — animate on change */}
+        <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${navMode}-${selectedMonth?.label}-${customRange?.from}-${activeStmt}`}>
           <div style={{ padding: "20px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 12 }}>Income</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{fmt(summary.income, true)}</div>
@@ -877,7 +852,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>{fmt(Math.abs(summary.net), true)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
-              <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} /></div>
+              <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
+              </div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend ratio</div>
             </div>
           </div>
@@ -938,7 +915,9 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
         <div className="fade-up stat-card" style={{ animationDelay: "0.15s", overflow: "hidden", padding: 0 }}>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--cream-border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Transactions {activeCategory ? <span style={{ color: "var(--red)", marginLeft: 8 }}>{activeCategory}</span> : null}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>
+                Transactions {activeCategory ? <span style={{ color: "var(--red)", marginLeft: 8 }}>{activeCategory}</span> : null}
+              </div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)", marginTop: 3 }}>{filtered.length} of {transactions.length}</div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -948,6 +927,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
               </div>
             </div>
           </div>
+
           {txView === "list" && (
             <div style={{ overflowY: "auto", maxHeight: 520 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -959,8 +939,8 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
                       <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.description}</td>
                       <td style={{ padding:"11px 20px" }}><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
                       <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
-                      <td style={{ padding:"11px 12px 11px 4px",textAlign:"right",whiteSpace:"nowrap" }}>
-                        <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'IBM Plex Mono',monospace",fontSize:9,color:"var(--ink-faint)",letterSpacing:"0.04em",transition:"all 0.15s" }} title="Edit transaction">✎</button>
+                      <td style={{ padding:"11px 12px 11px 4px",textAlign:"right" }}>
+                        <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'IBM Plex Mono',monospace",fontSize:9,color:"var(--ink-faint)" }}>✎</button>
                       </td>
                     </tr>
                   ); })}
@@ -972,6 +952,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
               </div>
             </div>
           )}
+
           {txView === "calendar" && (() => {
             const byDay={};
             transactions.forEach(t => { const key=t.date.toISOString().slice(0,10); if(!byDay[key])byDay[key]={spend:0,income:0,txs:[]}; if(t.isCredit)byDay[key].income+=t.amount; else byDay[key].spend+=t.amount; byDay[key].txs.push(t); });
@@ -1013,7 +994,6 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
                   {[{color:"rgba(255,179,198,0.6)",label:"Spend day"},{color:"rgba(191,239,223,0.6)",label:"Net positive day"},{color:"var(--charcoal)",label:"Selected"}].map(({color,label})=>(
                     <div key={label} style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:12,height:12,borderRadius:3,background:color}}/><span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:10,color:"var(--ink-faint)"}}>{label}</span></div>
                   ))}
-                  <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:10,color:"var(--ink-faint)",marginLeft:"auto"}}>Darker = higher spend</div>
                 </div>
                 {selectedDay&&(
                   <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid var(--cream-border)"}}>
@@ -1036,6 +1016,8 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
       <ImportModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} />
       {pickerTx && <CategoryPicker transaction={pickerTx} categories={categories} onSelect={handleManualCategory} onClose={() => setPickerTx(null)} />}
       {editTx && <EditTxModal transaction={editTx} categories={categories} catMap={catMap} onSave={handleEditSave} onClose={() => setEditTx(null)} />}
+      {showCustomRange && <CustomRangePicker onApply={(from, to) => { setCustomRange({ from, to }); setShowCustomRange(false); setActiveCategory(null); setSearch(""); }} onClose={() => setShowCustomRange(false)} />}
+
       <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 40 }}>
         <button className="fab-import" onClick={() => setShowImport(true)} title="Import Statement"><span className="fab-icon">+</span><span className="fab-label">Import Statement</span></button>
       </div>
@@ -1045,7 +1027,7 @@ function DashboardPanel({ userId, workspace, categories, catMap }) {
 
 /* ─── ROOT ─── */
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = loading
+  const [session, setSession] = useState(undefined);
   const [accessDenied, setAccessDenied] = useState(false);
   const [dark, setDark] = useState(false);
   const [workspace, setWorkspace] = useState("professional");
@@ -1053,7 +1035,6 @@ export default function App() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const catMap = useMemo(() => buildCatMap(categories), [categories]);
 
-  /* Auth listener */
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
@@ -1083,13 +1064,10 @@ export default function App() {
   };
 
   const handleSaveCategories = async (newCats, deletedName, reassignTo) => {
-    // Upsert all categories
     await supabase.from("categories").upsert(newCats.map((c, i) => ({ id: c.id, name: c.name, color: c.color, icon: c.icon, sort_order: i })));
-    // Delete removed ones
     const newIds = newCats.map(c => c.id);
     const removed = categories.filter(c => !newIds.includes(c.id));
     for (const c of removed) await supabase.from("categories").delete().eq("id", c.id);
-    // Reassign transactions if needed
     if (deletedName && reassignTo) {
       await supabase.from("transactions").update({ category: reassignTo }).eq("category", deletedName);
       await supabase.from("transactions").update({ manual_category: reassignTo }).eq("manual_category", deletedName);
@@ -1102,7 +1080,6 @@ export default function App() {
   const eyebrow = isPro ? "Base X Studio" : "Otoabasi Bassey";
   const accountLabel = isPro ? "FNB Gold Business" : "FNB Personal Account";
 
-  // Loading
   if (session === undefined) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FFFFFF", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#B0B0B0", letterSpacing: "0.08em", gap: 12 }}>
       <div style={{ width: 16, height: 16, border: "2px solid rgba(227,26,81,0.2)", borderTopColor: "#E31A51", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
@@ -1111,7 +1088,6 @@ export default function App() {
     </div>
   );
 
-  // Not logged in
   if (!session) return (
     <>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap');`}</style>
@@ -1124,7 +1100,6 @@ export default function App() {
     </>
   );
 
-  // Logged in
   return (
     <>
       <style>{`
@@ -1147,7 +1122,7 @@ export default function App() {
         .stat-card { background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: var(--r-xl); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
         .search-input { padding: 8px 14px; background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: 100px; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink); outline: none; width: 200px; }
         .search-input::placeholder { color: var(--ink-faint); }
-        .bento-top { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .bento-top { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
         .bento-top .net-hero-inner { grid-column: 1 / -1; }
         @media (min-width: 640px) { .bento-top { grid-template-columns: 1fr 1fr 2fr; } .bento-top .net-hero-inner { grid-column: auto; } }
         .donut-container { width: 200px; height: 200px; }
@@ -1180,7 +1155,6 @@ export default function App() {
       `}</style>
 
       <div className={dark ? "dark" : ""} style={{ background: "var(--cream)", minHeight: "100vh", padding: "48px 28px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
-        {/* HEADER */}
         <div className="fade-up" style={{ marginBottom: 28 }}>
           <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 32, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
             <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase" }}>{eyebrow}</span>
@@ -1201,13 +1175,12 @@ export default function App() {
                 <button className={`ws-toggle-opt${dark ? " active" : ""}`} onClick={() => setDark(true)} title="Dark mode">🌙</button>
               </div>
               <button onClick={() => setShowCatManager(true)} title="Manage categories" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", color: "var(--ink-faint)", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>🗂️</button>
-              <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "5px 12px", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.05em", transition: "all 0.15s" }}>Sign out</button>
+              <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "5px 12px", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.05em" }}>Sign out</button>
             </div>
           </div>
         </div>
 
-        <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} />
-
+        <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} />
         {showCatManager && <CategoryManager categories={categories} onSave={handleSaveCategories} onClose={() => setShowCatManager(false)} />}
       </div>
     </>
