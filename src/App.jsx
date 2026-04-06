@@ -265,11 +265,11 @@ function LoginScreen() {
     <div style={{ minHeight: "100vh", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", padding: 24 }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
         <div style={{ marginBottom: 40, textAlign: "center" }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#E31A51", marginBottom: 10 }}>Base X Studio</div>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#E31A51", marginBottom: 10 }}>Base X Studio</div>
           <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 900, fontSize: 28, letterSpacing: "-0.03em", textTransform: "uppercase", color: "#0A0A0A" }}>Financial<br />Dashboard</div>
         </div>
         <div style={{ background: "#F5F5F5", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 24, padding: 32, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.4)", marginBottom: 4 }}>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.4)", marginBottom: 4 }}>
             {mode === "login" ? "Sign in to your account" : "Create your account"}
           </div>
           <button onClick={handleGoogle} disabled={loading} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 12, border: "1.5px solid rgba(0,0,0,0.10)", background: "white", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600, color: "#0A0A0A", transition: "all 0.15s" }}>
@@ -278,19 +278,19 @@ function LoginScreen() {
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
             <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.3)" }}>or</span>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.3)" }}>or</span>
             <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
           </div>
           <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email address"
             style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "white", fontFamily: "'Inter', sans-serif", fontSize: 14, color: "#0A0A0A", outline: "none" }} />
           <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleEmail()} type="password" placeholder="Password"
             style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "white", fontFamily: "'Inter', sans-serif", fontSize: 14, color: "#0A0A0A", outline: "none" }} />
-          {error && <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#E31A51", padding: "8px 12px", background: "rgba(227,26,81,0.06)", borderRadius: 8 }}>{error}</div>}
-          {message && <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#14b8a6", padding: "8px 12px", background: "rgba(20,184,166,0.06)", borderRadius: 8 }}>{message}</div>}
+          {error && <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#E31A51", padding: "8px 12px", background: "rgba(227,26,81,0.06)", borderRadius: 8 }}>{error}</div>}
+          {message && <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#14b8a6", padding: "8px 12px", background: "rgba(20,184,166,0.06)", borderRadius: 8 }}>{message}</div>}
           <button onClick={handleEmail} disabled={loading} style={{ padding: "13px", borderRadius: 100, background: "linear-gradient(135deg, #E31A51, #FF5C7A)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 12px rgba(227,26,81,0.3)", marginTop: 4 }}>
             {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
           </button>
-          <div style={{ textAlign: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 4 }}>
+          <div style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 4 }}>
             {mode === "login" ? (
               <span>No account? <button onClick={() => { setMode("signup"); setError(null); }} style={{ background: "none", border: "none", color: "#E31A51", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", fontWeight: 700 }}>Sign up</button></span>
             ) : (
@@ -298,7 +298,7 @@ function LoginScreen() {
             )}
           </div>
         </div>
-        <div style={{ textAlign: "center", marginTop: 20, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.25)", letterSpacing: "0.06em" }}>
+        <div style={{ textAlign: "center", marginTop: 20, fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.25)", letterSpacing: "0.06em" }}>
           Private access only · Base X Studio 2026
         </div>
       </div>
@@ -362,28 +362,28 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
           {/* FY Navigator */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", color: canGoBack ? "var(--ink-mid)" : "var(--cream-border)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>‹</button>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-light)" }}>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-light)" }}>
               Financial Year · {fyStartYear}/{fyStartYear + 1}
             </div>
             <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", color: canGoFwd ? "var(--ink-mid)" : "var(--cream-border)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>›</button>
           </div>
           <div style={{ display: "flex", gap: 20 }}>
             <div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Income  </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#16a34a" }}>{fmt(totalIncome, true)}</span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Income  </span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: "#16a34a" }}>{fmt(totalIncome, true)}</span>
             </div>
             <div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Spend  </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: "#E31A51" }}>{fmt(totalSpend, true)}</span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Spend  </span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: "#E31A51" }}>{fmt(totalSpend, true)}</span>
             </div>
             <div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Net  </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: totalIncome - totalSpend >= 0 ? "#16a34a" : "#E31A51" }}>{fmt(totalIncome - totalSpend, true)}</span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Net  </span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: totalIncome - totalSpend >= 0 ? "#16a34a" : "#E31A51" }}>{fmt(totalIncome - totalSpend, true)}</span>
             </div>
           </div>
         </div>
         {selectedMonth && (
-          <button onClick={() => onSelectMonth(null)} style={{ background: "var(--cream)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: "4px 12px", color: "var(--ink-mid)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
+          <button onClick={() => onSelectMonth(null)} style={{ background: "var(--cream)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: "4px 12px", color: "var(--ink-mid)", fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
             Clear ✕
           </button>
         )}
@@ -408,10 +408,10 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
               {/* Tooltip */}
               {tooltip === i && (
                 <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "var(--ink)", border: "none", borderRadius: 10, padding: "10px 12px", zIndex: 20, pointerEvents: "none", minWidth: 130, boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>{m.label}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#4ade80", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#f87171", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: m.net >= 0 ? "#4ade80" : "#f87171", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 4, marginTop: 4 }}>
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>{m.label}</div>
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#4ade80", marginBottom: 2 }}>↑ {fmt(m.income, true)}</div>
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#f87171", marginBottom: 2 }}>↓ {fmt(m.spend, true)}</div>
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: m.net >= 0 ? "#4ade80" : "#f87171", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 4, marginTop: 4 }}>
                     {m.net >= 0 ? "+" : ""}{fmt(m.net, true)}
                   </div>
                 </div>
@@ -443,7 +443,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
 
               {/* Month label */}
               <div style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 8, fontWeight: isSelected ? 700 : 400,
                 color: isSelected ? "var(--ink)" : isEmpty ? "var(--cream-border)" : "var(--ink-faint)",
                 letterSpacing: "0.04em", textTransform: "uppercase",
@@ -459,7 +459,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
 
       {/* Selected month indicator */}
       {selectedMonth && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--cream-border)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--cream-border)", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>
           Showing  <span style={{ color: "var(--ink)", fontWeight: 700 }}>{selectedMonth.label}</span>  below · Click bar again or Clear to see full year
         </div>
       )}
@@ -515,35 +515,35 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 28, width: 420, zIndex: 101, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Edit Transaction</div>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Edit Transaction</div>
           <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "var(--ink-light)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Description</label>
+          <label style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Description</label>
           <input value={desc} onChange={e => setDesc(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Amount</label>
-            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" step="0.01" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+            <label style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Amount</label>
+            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" step="0.01" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
           </div>
           <div style={{ display: "flex", gap: 4, padding: "3px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)" }}>
-            <button onClick={() => setIsCredit(false)} style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, background: !isCredit ? "#FFD6C2" : "transparent", color: !isCredit ? "#8B3A00" : "var(--ink-faint)", transition: "all 0.15s" }}>Debit</button>
-            <button onClick={() => setIsCredit(true)}  style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, background: isCredit  ? "#BFEFDF" : "transparent", color: isCredit  ? "#1A5C3A" : "var(--ink-faint)", transition: "all 0.15s" }}>Credit</button>
+            <button onClick={() => setIsCredit(false)} style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, background: !isCredit ? "#FFD6C2" : "transparent", color: !isCredit ? "#8B3A00" : "var(--ink-faint)", transition: "all 0.15s" }}>Debit</button>
+            <button onClick={() => setIsCredit(true)}  style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, background: isCredit  ? "#BFEFDF" : "transparent", color: isCredit  ? "#1A5C3A" : "var(--ink-faint)", transition: "all 0.15s" }}>Credit</button>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Date</label>
-          <input value={dateStr} onChange={e => setDateStr(e.target.value)} placeholder="08 Dec" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: "var(--ink)", outline: "none" }} />
+          <label style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Date</label>
+          <input value={dateStr} onChange={e => setDateStr(e.target.value)} placeholder="08 Dec" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink)", outline: "none" }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Category</label>
+          <label style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Category</label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, maxHeight: 200, overflowY: "auto" }}>
             {categories.filter(c => c.name !== "Income" || isCredit).map(c => {
               const cfg = catMap[c.name] || { color: "#7A756E", bg: "#7A756E18" };
               const isActive = category === c.name;
               return (
-                <button key={c.id} onClick={() => setCategory(c.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 8, border: `1px solid ${isActive ? cfg.color : "var(--cream-border)"}`, background: isActive ? cfg.bg : "transparent", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: isActive ? cfg.color : "var(--ink-mid)", transition: "all 0.1s" }}>
+                <button key={c.id} onClick={() => setCategory(c.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 8, border: `1px solid ${isActive ? cfg.color : "var(--cream-border)"}`, background: isActive ? cfg.bg : "transparent", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 600, color: isActive ? cfg.color : "var(--ink-mid)", transition: "all 0.1s" }}>
                   {c.icon} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
                 </button>
               );
@@ -551,8 +551,8 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
-          <button onClick={handleSave} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={handleSave} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
         </div>
       </div>
     </div>
@@ -588,7 +588,7 @@ function ImportModal({ open, onClose, onImport }) {
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(3px)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 32, width: 520, maxWidth: "95vw", zIndex: 101, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Import Statement</div>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Import Statement</div>
           <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
         <div
@@ -600,22 +600,22 @@ function ImportModal({ open, onClose, onImport }) {
         >
           <input id="file-input-hidden" type="file" accept=".txt,.csv,.xlsx,.xls" style={{ display: "none" }} onChange={async e => { const f = e.target.files[0]; if (f) await processFile(f); }} />
           {processing ? (
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Processing…</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Processing…</div>
           ) : fileName ? (
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", fontWeight: 600 }}>📄 {fileName}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", fontWeight: 600 }}>📄 {fileName}</div>
           ) : (
             <>
               <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Drop file or click to browse</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", marginTop: 4, opacity: 0.6 }}>TXT · CSV · XLSX · XLS</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Drop file or click to browse</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", marginTop: 4, opacity: 0.6 }}>TXT · CSV · XLSX · XLS</div>
             </>
           )}
         </div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Or paste statement text</div>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={6} placeholder="Paste your bank statement text here…" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.7, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--cream-border)", background: "var(--cream)", color: "var(--ink)", resize: "vertical", outline: "none" }} />
+        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Or paste statement text</div>
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={6} placeholder="Paste your bank statement text here…" style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, lineHeight: 1.7, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--cream-border)", background: "var(--cream)", color: "var(--ink)", resize: "vertical", outline: "none" }} />
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => { if (text.trim()) { onImport(text); setText(""); setFileName(""); } }} disabled={!text.trim()} style={{ flex: 2, padding: "11px", borderRadius: 100, background: text.trim() ? "var(--grad)" : "var(--cream-border)", border: "none", color: text.trim() ? "white" : "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: text.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>Import Statement</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => { if (text.trim()) { onImport(text); setText(""); setFileName(""); } }} disabled={!text.trim()} style={{ flex: 2, padding: "11px", borderRadius: 100, background: text.trim() ? "var(--grad)" : "var(--cream-border)", border: "none", color: text.trim() ? "white" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: text.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>Import Statement</button>
         </div>
       </div>
     </div>
@@ -628,11 +628,11 @@ function CategoryPicker({ transaction, categories, onSelect, onClose }) {
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 24, width: 360, zIndex: 101, boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Re-categorise</div>
+        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Re-categorise</div>
         <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--ink-mid)", marginBottom: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{transaction.description}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           {categories.filter(c => c.name !== "Income").map(c => (
-            <button key={c.id} onClick={() => onSelect(c.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: "var(--ink-mid)", transition: "all 0.1s" }}>
+            <button key={c.id} onClick={() => onSelect(c.name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 600, color: "var(--ink-mid)", transition: "all 0.1s" }}>
               {c.icon} {c.name}
             </button>
           ))}
@@ -661,7 +661,7 @@ function CategoryManager({ categories, onSave, onClose }) {
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(3px)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 28, width: 480, maxWidth: "95vw", maxHeight: "80vh", overflow: "auto", zIndex: 201, boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Manage Categories</div>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Manage Categories</div>
           <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
@@ -677,8 +677,8 @@ function CategoryManager({ categories, onSave, onClose }) {
           ))}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={add} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)", cursor: "pointer" }}>+ Add Category</button>
-          <button onClick={() => onSave(cats, deletedName, reassignTo)} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
+          <button onClick={add} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)", cursor: "pointer" }}>+ Add Category</button>
+          <button onClick={() => onSave(cats, deletedName, reassignTo)} style={{ flex: 2, padding: "10px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Save Changes</button>
         </div>
       </div>
     </div>
@@ -695,18 +695,18 @@ function CustomRangePicker({ onApply, onClose }) {
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 20, padding: 28, width: 360, zIndex: 101, boxShadow: "0 16px 48px rgba(0,0,0,0.16)", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Custom Date Range</div>
+        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Custom Date Range</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>From</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "var(--ink)", outline: "none" }} />
+          <label style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>From</label>
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink)", outline: "none" }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>To</label>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "var(--ink)", outline: "none" }} />
+          <label style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)" }}>To</label>
+          <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink)", outline: "none" }} />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => canApply && onApply(from, to)} disabled={!canApply} style={{ flex: 2, padding: "10px", borderRadius: 100, background: canApply ? "var(--charcoal)" : "var(--cream-border)", border: "none", color: canApply ? "white" : "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: canApply ? "pointer" : "not-allowed" }}>Apply Range</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => canApply && onApply(from, to)} disabled={!canApply} style={{ flex: 2, padding: "10px", borderRadius: 100, background: canApply ? "var(--charcoal)" : "var(--cream-border)", border: "none", color: canApply ? "white" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: canApply ? "pointer" : "not-allowed" }}>Apply Range</button>
         </div>
       </div>
     </div>
@@ -879,7 +879,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   if (dbLoading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 80, gap: 12 }}>
       <div className="ai-spinner" />
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)" }}>Loading statements…</span>
+      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Loading statements…</span>
     </div>
   );
 
@@ -890,12 +890,12 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2 }}>
           {[["calendar","📅 Calendar"],["statement","🗂 Statement"]].map(([mode, label]) => (
-            <button key={mode} onClick={() => { setNavMode(mode); setSelectedMonth(null); setCustomRange(null); setActiveCategory(null); setSearch(""); }} style={{ padding: "5px 14px", borderRadius: 100, border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", background: navMode === mode ? "var(--charcoal)" : "transparent", color: navMode === mode ? "white" : "var(--ink-faint)", transition: "all 0.2s" }}>
+            <button key={mode} onClick={() => { setNavMode(mode); setSelectedMonth(null); setCustomRange(null); setActiveCategory(null); setSearch(""); }} style={{ padding: "5px 14px", borderRadius: 100, border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", background: navMode === mode ? "var(--charcoal)" : "transparent", color: navMode === mode ? "white" : "var(--ink-faint)", transition: "all 0.2s" }}>
               {label}
             </button>
           ))}
         </div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", paddingLeft: 4 }}>{contextLabel}</div>
+        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", paddingLeft: 4 }}>{contextLabel}</div>
       </div>
 
       {/* ── CALENDAR MODE: YEAR CHART ── */}
@@ -918,7 +918,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                 {isActive && statements.length > 1 && (
                   <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
                 )}
-                <button onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
+                <button onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
                 {isActive && statements.length > 1 && (
                   <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
                 )}
@@ -927,19 +927,19 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
             );
           })}
           {/* Custom range button */}
-          <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+          <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
             {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
           </button>
-          {customRange && <button onClick={() => setCustomRange(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
-          <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, cursor: "pointer" }}>+ Add</button>
+          {customRange && <button onClick={() => setCustomRange(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
+          <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
         </div>
       )}
 
       {!statements.length && (
-        <div style={{ textAlign: "center", padding: "80px 24px", color: "var(--ink-faint)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: "0.06em" }}>
+        <div style={{ textAlign: "center", padding: "80px 24px", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.06em" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>🗂️</div>
           No statements yet.<br />
-          <button onClick={() => setShowImport(true)} style={{ marginTop: 16, padding: "8px 20px", borderRadius: 100, background: "var(--grad)", border: "none", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Import your first statement</button>
+          <button onClick={() => setShowImport(true)} style={{ marginTop: 16, padding: "8px 20px", borderRadius: 100, background: "var(--grad)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Import your first statement</button>
         </div>
       )}
 
@@ -948,7 +948,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         {(aiLoading || aiStatus) && (
           <div style={{ marginBottom: 12, padding: "10px 18px", borderRadius: 10, background: aiLoading ? "rgba(99,102,241,0.08)" : aiStatus === "done" ? "rgba(20,184,166,0.08)" : "rgba(227,26,81,0.08)", border: `1px solid ${aiLoading ? "rgba(99,102,241,0.2)" : aiStatus === "done" ? "rgba(20,184,166,0.2)" : "rgba(227,26,81,0.2)"}`, display: "flex", alignItems: "center", gap: 10 }}>
             {aiLoading && <div className="ai-spinner" />}
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: aiLoading ? "#6366f1" : aiStatus === "done" ? "#14b8a6" : "#E31A51" }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: aiLoading ? "#6366f1" : aiStatus === "done" ? "#14b8a6" : "#E31A51" }}>
               {aiLoading ? "Claude is categorising your transactions…" : aiStatus === "done" ? `✓ AI categorised ${aiCount} transactions${manualCount > 0 ? ` · ${manualCount} manually overridden` : ""}` : "⚠ AI categorisation failed — using keyword matching"}
             </span>
           </div>
@@ -957,23 +957,23 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         {/* KPI CARDS — animate on change */}
         <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${navMode}-${selectedMonth?.label}-${customRange?.from}-${activeStmt}`}>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
           </div>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
           </div>
           <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 28px 18px", background: netPositive ? "var(--charcoal)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(13,11,9,0.14)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 40, fontWeight: 700, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
               <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
               </div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend ratio</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend ratio</div>
             </div>
           </div>
         </div>
@@ -982,10 +982,10 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <div className="fade-up" style={{ animationDelay: "0.1s", marginBottom: 12 }}>
           <div className="stat-card" style={{ padding: "20px 24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Spend by Category</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Spend by Category</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {activeCategory && <button onClick={() => setActiveCategory(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--red)", letterSpacing: "0.04em" }}>Clear ✕</button>}
-                <button onClick={handleAICategorise} disabled={aiLoading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 100, background: aiLoading ? "transparent" : "var(--cream)", border: `1px solid ${aiLoading ? "rgba(99,102,241,0.2)" : "var(--cream-border)"}`, color: aiLoading ? "#6366f1" : "var(--ink-mid)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", cursor: aiLoading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+                {activeCategory && <button onClick={() => setActiveCategory(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--red)", letterSpacing: "0.04em" }}>Clear ✕</button>}
+                <button onClick={handleAICategorise} disabled={aiLoading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 100, background: aiLoading ? "transparent" : "var(--cream)", border: `1px solid ${aiLoading ? "rgba(99,102,241,0.2)" : "var(--cream-border)"}`, color: aiLoading ? "#6366f1" : "var(--ink-mid)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", cursor: aiLoading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                   {aiLoading ? <><div className="ai-spinner-sm" style={{ borderTopColor: "#6366f1", borderColor: "rgba(99,102,241,0.2)" }} /> Thinking…</> : "✦ AI Categorise"}
                 </button>
               </div>
@@ -1005,8 +1005,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                   <div className="donut-container" style={{ flexShrink: 0 }}>
                     <svg viewBox={`0 0 ${size} ${size}`} className="donut-svg">
                       {slices.map(({cat,d}) => { const cfg=catMap[cat]||{color:"#7A756E"}; const isA=activeCategory===cat; return <path key={cat} d={d} fill={cfg.color} opacity={activeCategory&&!isA?0.15:1} style={{cursor:"pointer",transition:"opacity 0.2s"}} onClick={() => setActiveCategory(activeCategory===cat?null:cat)} />; })}
-                      <text x={cx} y={cy-8} textAnchor="middle" style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:11,fill:"var(--ink-light)",fontWeight:700}}>SPEND</text>
-                      <text x={cx} y={cy+10} textAnchor="middle" style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fill:"var(--ink)",fontWeight:700}}>{fmt(total,true)}</text>
+                      <text x={cx} y={cy-8} textAnchor="middle" style={{fontFamily:"'Inter',sans-serif",fontSize:11,fill:"var(--ink-light)",fontWeight:700}}>SPEND</text>
+                      <text x={cx} y={cy+10} textAnchor="middle" style={{fontFamily:"'Inter',sans-serif",fontSize:13,fill:"var(--ink)",fontWeight:700}}>{fmt(total,true)}</text>
                     </svg>
                   </div>
                   <div className="donut-legend" style={{ flex:1, minWidth:160 }}>
@@ -1015,8 +1015,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                           <div style={{width:7,height:7,borderRadius:2,background:cfg.color,flexShrink:0}} />
                           <div style={{flex:1,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:isA?cfg.color:"var(--ink-mid)"}}>{cat}</div>
-                          <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:12,fontWeight:700,color:isA?cfg.color:"var(--ink)"}}>{(frac*100).toFixed(0)}%</div>
-                          <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:12,color:"var(--ink-faint)"}}>{fmt(amount,true)}</div>
+                          <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,fontWeight:700,color:isA?cfg.color:"var(--ink)"}}>{(frac*100).toFixed(0)}%</div>
+                          <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:"var(--ink-faint)"}}>{fmt(amount,true)}</div>
                         </div>
                         <div style={{height:3,background:"var(--cream-border)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${(frac*100).toFixed(1)}%`,background:cfg.color,borderRadius:2,transition:"width 0.6s cubic-bezier(0.4,0,0.2,1)"}} /></div>
                       </div>
@@ -1033,15 +1033,15 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <div className="fade-up stat-card" style={{ animationDelay: "0.15s", overflow: "hidden", padding: 0 }}>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--cream-border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>
                 Transactions {activeCategory ? <span style={{ color: "var(--red)", marginLeft: 8 }}>{activeCategory}</span> : null}
               </div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--ink-faint)", marginTop: 3 }}>{filtered.length} of {transactions.length}</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)", marginTop: 3 }}>{filtered.length} of {transactions.length}</div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               {txView === "list" && <input type="text" className="search-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" />}
               <div style={{ display: "flex", gap: 4 }}>
-                {[["list","List"],["calendar","Calendar"]].map(([v,lbl]) => <button key={v} onClick={() => { setTxView(v); setSelectedDay(null); }} style={{ padding: "4px 12px", borderRadius: 100, border: "1px solid var(--cream-border)", background: txView===v?"var(--cream-card)":"transparent", color: txView===v?"var(--ink)":"var(--ink-faint)", fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, cursor: "pointer", transition: "all 0.15s" }}>{lbl}</button>)}
+                {[["list","List"],["calendar","Calendar"]].map(([v,lbl]) => <button key={v} onClick={() => { setTxView(v); setSelectedDay(null); }} style={{ padding: "4px 12px", borderRadius: 100, border: "1px solid var(--cream-border)", background: txView===v?"var(--cream-card)":"transparent", color: txView===v?"var(--ink)":"var(--ink-faint)", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer", transition: "all 0.15s" }}>{lbl}</button>)}
               </div>
             </div>
           </div>
@@ -1049,24 +1049,24 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           {txView === "list" && (
             <div style={{ overflowY: "auto", maxHeight: 520 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "var(--cream)" }}>{[["Date","left"],["Description","left"],["Category","left"],["Amount","right"],["","right"]].map(([h,align]) => <th key={h} style={{ padding:"10px 20px",textAlign:align,fontFamily:"'IBM Plex Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-faint)",borderBottom:"1px solid var(--cream-border)" }}>{h}</th>)}</tr></thead>
+                <thead><tr style={{ background: "var(--cream)" }}>{[["Date","left"],["Description","left"],["Category","left"],["Amount","right"],["","right"]].map(([h,align]) => <th key={h} style={{ padding:"10px 20px",textAlign:align,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-faint)",borderBottom:"1px solid var(--cream-border)" }}>{h}</th>)}</tr></thead>
                 <tbody>
                   {filtered.map(t => { const cat=t.manualCategory||t.category; const cfg=catMap[cat]||{color:"#7A756E",bg:"#7A756E18",icon:"•"}; return (
                     <tr key={t.id} className="tx-row">
-                      <td style={{ padding:"11px 20px",fontFamily:"'IBM Plex Mono',monospace",fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap" }}>{t.dateStr}</td>
+                      <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap" }}>{t.dateStr}</td>
                       <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.description}</td>
-                      <td style={{ padding:"11px 20px" }}><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
-                      <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
+                      <td style={{ padding:"11px 20px" }}><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
+                      <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
                       <td style={{ padding:"11px 12px 11px 4px",textAlign:"right" }}>
-                        <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'IBM Plex Mono',monospace",fontSize:9,color:"var(--ink-faint)" }}>✎</button>
+                        <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:9,color:"var(--ink-faint)" }}>✎</button>
                       </td>
                     </tr>
                   ); })}
                 </tbody>
               </table>
-              {!filtered.length && <div style={{ padding:"48px 24px",textAlign:"center",color:"var(--ink-faint)",fontFamily:"'IBM Plex Mono',monospace",fontSize:11 }}>No transactions match your filter.</div>}
+              {!filtered.length && <div style={{ padding:"48px 24px",textAlign:"center",color:"var(--ink-faint)",fontFamily:"'Inter',sans-serif",fontSize:11 }}>No transactions match your filter.</div>}
               <div style={{ padding:"10px 20px",borderTop:"1px solid var(--cream-border)",display:"flex",gap:16,flexWrap:"wrap" }}>
-                {[["✦ AI categorised","#6366f1"],["✎ Manually overridden","#14b8a6"],["Click any category to re-categorise","var(--ink-faint)"]].map(([lbl,color]) => <span key={lbl} style={{ fontFamily:"'IBM Plex Mono',monospace",fontSize:9,color,letterSpacing:"0.06em" }}>{lbl}</span>)}
+                {[["✦ AI categorised","#6366f1"],["✎ Manually overridden","#14b8a6"],["Click any category to re-categorise","var(--ink-faint)"]].map(([lbl,color]) => <span key={lbl} style={{ fontFamily:"'Inter',sans-serif",fontSize:9,color,letterSpacing:"0.06em" }}>{lbl}</span>)}
               </div>
             </div>
           )}
@@ -1087,8 +1087,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                     const cells=[...Array(firstDay).fill(null),...Array.from({length:dim},(_,i)=>i+1)];
                     return (
                       <div key={`${year}-${month}`} className="cal-month-wrap">
-                        <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--ink-light)",marginBottom:10}}>{MN[month]} {year}</div>
-                        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>{DAYS.map(d=><div key={d} style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:8,fontWeight:700,color:"var(--ink-faint)",textAlign:"center",padding:"2px 0"}}>{d}</div>)}</div>
+                        <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--ink-light)",marginBottom:10}}>{MN[month]} {year}</div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>{DAYS.map(d=><div key={d} style={{fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:700,color:"var(--ink-faint)",textAlign:"center",padding:"2px 0"}}>{d}</div>)}</div>
                         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
                           {cells.map((day,i) => {
                             if(!day)return<div key={`e${i}`}/>;
@@ -1099,7 +1099,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                             if(data){if(isNP){bg=`rgba(191,239,223,${0.2+si*0.4})`;border=`rgba(61,140,111,${0.2+si*0.3})`;}else{bg=`rgba(255,179,198,${0.2+si*0.5})`;border=`rgba(192,57,43,${0.2+si*0.4})`;}}
                             if(isSel){bg="var(--charcoal)";border="var(--charcoal)";}
                             return <div key={key} onClick={()=>data&&setSelectedDay(isSel?null:key)} style={{aspectRatio:"1",borderRadius:5,background:bg,border:`1px solid ${border}`,cursor:data?"pointer":"default",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",transition:"all 0.15s",padding:2}}>
-                              <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:9,fontWeight:isSel?700:400,color:isSel?"white":data?"var(--ink)":"var(--ink-faint)",lineHeight:1}}>{day}</div>
+                              <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:isSel?700:400,color:isSel?"white":data?"var(--ink)":"var(--ink-faint)",lineHeight:1}}>{day}</div>
                               {data&&<div style={{width:3,height:3,borderRadius:"50%",background:isSel?"rgba(255,255,255,0.6)":isNP?"#3D8C6F":"#C0392B",marginTop:2}}/>}
                             </div>;
                           })}
@@ -1110,17 +1110,17 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                 </div>
                 <div style={{display:"flex",gap:16,marginTop:20,paddingTop:16,borderTop:"1px solid var(--cream-border)",flexWrap:"wrap"}}>
                   {[{color:"rgba(255,179,198,0.6)",label:"Spend day"},{color:"rgba(191,239,223,0.6)",label:"Net positive day"},{color:"var(--charcoal)",label:"Selected"}].map(({color,label})=>(
-                    <div key={label} style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:12,height:12,borderRadius:3,background:color}}/><span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:10,color:"var(--ink-faint)"}}>{label}</span></div>
+                    <div key={label} style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:12,height:12,borderRadius:3,background:color}}/><span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:"var(--ink-faint)"}}>{label}</span></div>
                   ))}
                 </div>
                 {selectedDay&&(
                   <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid var(--cream-border)"}}>
-                    <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-light)",marginBottom:12}}>{selectedDay} · {selectedTxs.length} transaction{selectedTxs.length!==1?"s":""}</div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-light)",marginBottom:12}}>{selectedDay} · {selectedTxs.length} transaction{selectedTxs.length!==1?"s":""}</div>
                     {selectedTxs.map(t=>{const cat=t.manualCategory||t.category;const cfg=catMap[cat]||{color:"#7A756E",bg:"#7A756E18",icon:"•"};return(
                       <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:"1px solid var(--cream-border)"}}>
-                        <span style={{background:cfg.bg,color:cfg.color,padding:"2px 8px",borderRadius:100,fontFamily:"'IBM Plex Mono',monospace",fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{cfg.icon} {cat}</span>
+                        <span style={{background:cfg.bg,color:cfg.color,padding:"2px 8px",borderRadius:100,fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{cfg.icon} {cat}</span>
                         <span style={{flex:1,fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.description}</span>
-                        <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap"}}>{t.isCredit?"+":"−"}{fmt(t.amount)}</span>
+                        <span style={{fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap"}}>{t.isCredit?"+":"−"}{fmt(t.amount)}</span>
                       </div>
                     );})}
                   </div>
@@ -1143,6 +1143,149 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   );
 }
 
+/* ─── FINANCIAL REPORT GENERATOR ─── */
+const FY_YEARS_LIST = (() => {
+  const years = [];
+  const now = new Date();
+  const m = now.getMonth();
+  const y = now.getFullYear();
+  const base = m >= 2 ? y : y - 1;
+  for (let i = 0; i < 5; i++) {
+    const s = base - i;
+    years.push({ id: `${s}-${s+1}`, label: `FY ${s}/${s+1}`, startDate: new Date(s, 2, 1), endDate: new Date(s+1, 2, 0) });
+  }
+  return years;
+})();
+
+function FinancialReportGenerator({ session, workspace }) {
+  const entityName = workspace === "professional" ? "Base X Studio" : "Otoabasi Bassey";
+  const [fyYear, setFyYear] = useState(FY_YEARS_LIST[0]);
+  const [allTxs, setAllTxs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState(null);
+  const [narrative, setNarrative] = useState("");
+  const [narLoading, setNarLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+  const [generatedAt, setGeneratedAt] = useState("");
+  const reportRef = useRef(null);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    setLoading(true); setGenerated(false); setReportData(null); setNarrative("");
+    (async () => {
+      const { data: stmts } = await supabase.from("statements").select("id").eq("user_id", session.user.id).eq("workspace", workspace);
+      if (!stmts?.length) { setAllTxs([]); setLoading(false); return; }
+      const { data: txs } = await supabase.from("transactions").select("*").in("statement_id", stmts.map(s => s.id)).order("date");
+      setAllTxs((txs || []).map(t => ({ ...t, date: new Date(t.date), dateStr: t.date_str, isCredit: t.is_credit, manualCategory: t.manual_category })));
+      setLoading(false);
+    })();
+  }, [workspace, session]);
+
+  const inFY = useMemo(() => allTxs.filter(t => { const d = new Date(t.date); return d >= fyYear.startDate && d <= fyYear.endDate; }), [allTxs, fyYear]);
+
+  const buildReport = () => {
+    const income = inFY.filter(t => t.isCredit).reduce((s,t) => s+t.amount, 0);
+    const spend  = inFY.filter(t => !t.isCredit).reduce((s,t) => s+t.amount, 0);
+    const byCat  = {};
+    inFY.filter(t => !t.isCredit).forEach(t => { const c = t.manualCategory||t.category; byCat[c]=(byCat[c]||0)+t.amount; });
+    const topCats = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+    const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mMap = {};
+    inFY.forEach(t => { const d = new Date(t.date); const k = `${MN[d.getMonth()]} ${d.getFullYear()}`; if (!mMap[k]) mMap[k]={income:0,spend:0}; if(t.isCredit) mMap[k].income+=t.amount; else mMap[k].spend+=t.amount; });
+    const monthly = Object.entries(mMap).map(([label,d]) => ({label,...d})).sort((a,b) => { const [am,ay]=a.label.split(" "); const [bm,by]=b.label.split(" "); return ay!==by?parseInt(ay)-parseInt(by):MN.indexOf(am)-MN.indexOf(bm); });
+    return { income, spend, net: income-spend, topCats, monthly, filtered: inFY };
+  };
+
+  const handleGenerate = async () => {
+    const data = buildReport();
+    setReportData(data); setGenerated(true);
+    setGeneratedAt(new Date().toLocaleDateString("en-ZA", { day:"2-digit", month:"long", year:"numeric" }));
+    setNarLoading(true);
+    try {
+      const prompt = `You are a professional financial analyst. Write a concise annual financial narrative (~250 words) for ${entityName} for ${fyYear.label}.\n\nIncome: R${data.income.toFixed(2)}, Expenditure: R${data.spend.toFixed(2)}, Net: R${data.net.toFixed(2)}\nTop categories: ${data.topCats.slice(0,5).map(([c,a])=>`${c} R${a.toFixed(0)}`).join(", ")}\n\nWrite 3 paragraphs: executive summary, spending observations, forward outlook. Professional tone, South African context, no bullet points.`;
+      const res = await fetch("/api/claude", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:800, messages:[{role:"user",content:prompt}] }) });
+      const d = await res.json();
+      setNarrative(d.content?.map(c=>c.text||"").join("")||"");
+    } catch { setNarrative(""); }
+    setNarLoading(false);
+  };
+
+  const handlePrint = () => window.print();
+
+  const fmtR = n => `R\u00A0${Number(n).toLocaleString("en-ZA",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  const fmtRs = n => n>=1000?`R\u00A0${(n/1000).toFixed(1)}k`:fmtR(n);
+
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      {/* Controls */}
+      <div className="no-print" style={{ background:"var(--cream-card)", border:"1px solid var(--cream-border)", borderRadius:"var(--r-xl)", padding:"24px 28px", marginBottom:24, display:"flex", gap:24, alignItems:"flex-end", flexWrap:"wrap" }}>
+        <div style={{ flex:1, minWidth:200 }}>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"var(--ink-faint)", marginBottom:8 }}>Account</div>
+          <div style={{ fontSize:15, fontWeight:700, color:"var(--ink)" }}>{entityName}</div>
+          <div style={{ fontSize:12, color:"var(--ink-light)", marginTop:2 }}>{workspace === "professional" ? "Business account" : "Personal account"}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"var(--ink-faint)", marginBottom:8 }}>Financial Year</div>
+          <select value={fyYear.id} onChange={e => { setFyYear(FY_YEARS_LIST.find(f=>f.id===e.target.value)); setGenerated(false); }} style={{ padding:"9px 14px", borderRadius:10, border:"1px solid var(--cream-border)", background:"var(--cream)", fontFamily:"'Inter',sans-serif", fontSize:13, color:"var(--ink)", outline:"none", cursor:"pointer" }}>
+            {FY_YEARS_LIST.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"var(--ink-faint)", marginBottom:8 }}>Transactions in period</div>
+          <div style={{ fontSize:22, fontWeight:900, color: inFY.length > 0 ? "var(--red)" : "var(--ink-faint)" }}>{loading ? "—" : inFY.length}</div>
+        </div>
+        <button onClick={handleGenerate} disabled={loading||inFY.length===0} style={{ padding:"11px 24px", borderRadius:100, background: inFY.length>0?"linear-gradient(135deg,#E31A51,#FF5C7A)":"var(--cream-border)", border:"none", color:"white", fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:600, cursor: inFY.length>0?"pointer":"not-allowed", boxShadow: inFY.length>0?"0 2px 12px rgba(225,53,64,0.3)":"none", whiteSpace:"nowrap" }}>
+          {loading ? "Loading…" : "Generate Report"}
+        </button>
+      </div>
+
+      {/* Report */}
+      {generated && reportData && (
+        <div className="fade-up">
+          <div className="no-print" style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
+            <div style={{ fontSize:11, color:"var(--ink-faint)", marginRight:"auto" }}>{reportData.filtered.length} transactions · {entityName} · {fyYear.label}</div>
+            {narLoading && <div style={{ fontSize:11, color:"#6366f1", display:"flex", alignItems:"center", gap:6 }}><div className="ai-spinner"/>Generating narrative…</div>}
+            <button onClick={handlePrint} style={{ padding:"8px 18px", borderRadius:100, background:"var(--charcoal)", border:"none", color:"white", fontFamily:"'Inter',sans-serif", fontSize:12, fontWeight:600, cursor:"pointer" }}>🖨 Print / PDF</button>
+          </div>
+          <div ref={reportRef} style={{ background:"white", borderRadius:16, padding:"48px 52px", boxShadow:"0 4px 40px rgba(0,0,0,0.08)", fontFamily:"'Inter',sans-serif", color:"#0A0A0A" }}>
+            {/* Cover */}
+            <div style={{ marginBottom:40, paddingBottom:28, borderBottom:"2px solid #0A0A0A" }}>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#E31A51", marginBottom:8 }}>{workspace==="professional"?"Business · Financial Year Report":"Personal · Financial Year Report"}</div>
+              <div style={{ fontSize:34, fontWeight:900, letterSpacing:"-0.02em", textTransform:"uppercase", lineHeight:1 }}>{entityName}</div>
+              <div style={{ fontFamily:"'Noto Serif',serif", fontSize:15, color:"#7A756E", marginTop:8, fontStyle:"italic" }}>Annual Financial Statement — {fyYear.label}</div>
+              <div style={{ marginTop:12, fontSize:10, color:"#B8B3AC" }}>Generated {generatedAt} · Confidential</div>
+            </div>
+            {/* KPIs */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:12, marginBottom:36 }}>
+              {[
+                {label:"Total Income",value:fmtRs(reportData.income),color:"#22c55e"},
+                {label:"Total Expenditure",value:fmtRs(reportData.spend),color:"#E31A51"},
+                {label:reportData.net>=0?"Net Surplus":"Net Deficit",value:fmtRs(Math.abs(reportData.net)),color:reportData.net>=0?"#22c55e":"#E31A51"},
+                {label:"Savings Rate",value:`${reportData.income>0?((reportData.net/reportData.income)*100).toFixed(1):0}%`,color:"#6366f1"},
+              ].map(({label,value,color})=>(
+                <div key={label} style={{background:"#FAF7F3",borderRadius:12,padding:"16px 18px",position:"relative",overflow:"hidden"}}>
+                  <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:color,borderRadius:"12px 12px 0 0"}}/>
+                  <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"#7A756E",marginBottom:8}}>{label}</div>
+                  <div style={{fontSize:20,fontWeight:700,color,lineHeight:1}}>{value}</div>
+                </div>
+              ))}
+            </div>
+            {/* Narrative */}
+            {narrative && <div style={{background:"#FAF8F5",borderRadius:12,padding:"24px 28px",marginBottom:36,borderLeft:"3px solid #E31A51"}}><div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"#E31A51",marginBottom:12}}>Executive Summary</div><div style={{fontFamily:"'Noto Serif',serif",fontSize:14,lineHeight:1.8,color:"#3D3A36",whiteSpace:"pre-line"}}>{narrative}</div></div>}
+            {/* Monthly */}
+            {reportData.monthly.length>0&&<div style={{marginBottom:36}}><div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"#B8B3AC",marginBottom:16}}>Monthly Performance</div><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:"1px solid #E5E5E5"}}>{["Month","Income","Expenditure","Net"].map(h=><th key={h} style={{padding:"8px 10px",textAlign:h==="Month"?"left":"right",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#B8B3AC"}}>{h}</th>)}</tr></thead><tbody>{reportData.monthly.map((m,i)=><tr key={m.label} style={{borderBottom:"1px solid rgba(0,0,0,0.04)",background:i%2?"#FAF7F3":"transparent"}}><td style={{padding:"9px 10px",fontWeight:600}}>{m.label}</td><td style={{padding:"9px 10px",textAlign:"right",color:"#22c55e"}}>{fmtR(m.income)}</td><td style={{padding:"9px 10px",textAlign:"right",color:"#E31A51"}}>{fmtR(m.spend)}</td><td style={{padding:"9px 10px",textAlign:"right",fontWeight:700,color:m.income-m.spend>=0?"#22c55e":"#E31A51"}}>{m.income-m.spend>=0?"+":""}{fmtR(m.income-m.spend)}</td></tr>)}</tbody><tfoot><tr style={{borderTop:"2px solid #0A0A0A",background:"#FAF7F3"}}><td style={{padding:"10px",fontWeight:700,fontSize:10,letterSpacing:"0.06em",textTransform:"uppercase"}}>TOTAL</td><td style={{padding:"10px",textAlign:"right",fontWeight:700,color:"#22c55e"}}>{fmtR(reportData.income)}</td><td style={{padding:"10px",textAlign:"right",fontWeight:700,color:"#E31A51"}}>{fmtR(reportData.spend)}</td><td style={{padding:"10px",textAlign:"right",fontWeight:700,color:reportData.net>=0?"#22c55e":"#E31A51"}}>{reportData.net>=0?"+":""}{fmtR(reportData.net)}</td></tr></tfoot></table></div>}
+            {/* Categories */}
+            {reportData.topCats.length>0&&<div style={{marginBottom:36}}><div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"#B8B3AC",marginBottom:16}}>Expenditure by Category</div>{reportData.topCats.map(([cat,amt])=>{const pct=reportData.spend>0?((amt/reportData.spend)*100).toFixed(1):0;return(<div key={cat} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:500}}>{cat}</span><span style={{fontSize:12,fontWeight:700}}>{fmtR(amt)} <span style={{color:"#B8B3AC",fontWeight:400}}>({pct}%)</span></span></div><div style={{height:4,background:"rgba(0,0,0,0.06)",borderRadius:2}}><div style={{height:"100%",width:`${pct}%`,background:"#E31A51",borderRadius:2}}/></div></div>);})}</div>}
+            {/* Ledger */}
+            <div><div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"#B8B3AC",marginBottom:16}}>Full Transaction Ledger</div><table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}><thead><tr style={{background:"#FAF7F3",borderBottom:"1px solid #E5E5E5"}}>{["Date","Description","Category","Type","Amount"].map((h,i)=><th key={h} style={{padding:"7px 10px",textAlign:i>=3?"right":"left",fontSize:8,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"#B8B3AC"}}>{h}</th>)}</tr></thead><tbody>{[...reportData.filtered].sort((a,b)=>new Date(a.date)-new Date(b.date)).map((t,i)=>{const cat=t.manualCategory||t.category;return(<tr key={i} style={{borderBottom:"1px solid rgba(0,0,0,0.04)"}}><td style={{padding:"6px 10px",color:"#7A756E",whiteSpace:"nowrap"}}>{t.dateStr}</td><td style={{padding:"6px 10px",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.description}</td><td style={{padding:"6px 10px"}}><span style={{background:t.isCredit?"rgba(34,197,94,0.1)":"rgba(227,26,81,0.08)",color:t.isCredit?"#16a34a":"#E31A51",padding:"2px 8px",borderRadius:100,fontSize:9,fontWeight:600}}>{cat}</span></td><td style={{padding:"6px 10px",textAlign:"right",fontSize:9,fontWeight:700,color:t.isCredit?"#16a34a":"#E31A51"}}>{t.isCredit?"CR":"DR"}</td><td style={{padding:"6px 10px",textAlign:"right",fontWeight:600,color:t.isCredit?"#16a34a":"#E31A51",whiteSpace:"nowrap"}}>{t.isCredit?"+":"−"}{fmtR(t.amount)}</td></tr>);})}</tbody></table></div>
+          </div>
+        </div>
+      )}
+      <style>{`@media print { .no-print { display:none!important; } body { background:white!important; } @page { size:A4; margin:20mm; } }`}</style>
+    </div>
+  );
+}
+
 /* ─── ROOT ─── */
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -1151,6 +1294,7 @@ export default function App() {
   const [workspace, setWorkspace] = useState("professional");
   const [showCatManager, setShowCatManager] = useState(false);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [view, setView] = useState("dashboard"); // "dashboard" | "reports"
   const catMap = useMemo(() => buildCatMap(categories), [categories]);
 
   useEffect(() => {
@@ -1199,7 +1343,7 @@ export default function App() {
   const accountLabel = isPro ? "FNB Gold Business" : "FNB Personal Account";
 
   if (session === undefined) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FFFFFF", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#B0B0B0", letterSpacing: "0.08em", gap: 12 }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FFFFFF", fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#B0B0B0", letterSpacing: "0.08em", gap: 12 }}>
       <div style={{ width: 16, height: 16, border: "2px solid rgba(227,26,81,0.2)", borderTopColor: "#E31A51", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
       Loading…
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -1210,7 +1354,7 @@ export default function App() {
     <>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap');`}</style>
       {accessDenied && (
-        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#E31A51", color: "white", padding: "10px 20px", borderRadius: 100, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, zIndex: 999 }}>
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#E31A51", color: "white", padding: "10px 20px", borderRadius: 100, fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, zIndex: 999 }}>
           Access denied — your email is not on the approved list.
         </div>
       )}
@@ -1221,17 +1365,18 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;900&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
           --cream: #FFFFFF; --cream-card: #F5F5F5; --cream-border: rgba(0,0,0,0.10);
           --ink: #0A0A0A; --ink-mid: #3A3A3A; --ink-light: #767676; --ink-faint: #B0B0B0;
           --red: #E31A51; --grad: linear-gradient(135deg, #E31A51, #FF5C7A);
           --charcoal: #111111; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px;
+          --mono: 'Inter', sans-serif;
         }
         .dark { --cream: #141210; --cream-card: #1C1917; --cream-border: rgba(255,255,255,0.08); --ink: #F5F1ED; --ink-mid: #C4BDB6; --ink-light: #8A8279; --ink-faint: #6A6560; --charcoal: #2C2926; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 4px; }
-        .cat-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 100px; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; border: 1px solid var(--cream-border); background: var(--cream-card); color: var(--ink-mid); transition: all 0.15s; white-space: nowrap; }
+        .cat-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; border: 1px solid var(--cream-border); background: var(--cream-card); color: var(--ink-mid); transition: all 0.15s; white-space: nowrap; }
         .cat-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .cat-chip.active { color: white; border-color: transparent; }
         .tx-row { border-bottom: 1px solid var(--cream-border); transition: background 0.1s; }
@@ -1261,7 +1406,7 @@ export default function App() {
         .ai-spinner { width: 14px; height: 14px; border: 2px solid rgba(99,102,241,0.25); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
         .ai-spinner-sm { width: 10px; height: 10px; border: 1.5px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
         .ws-toggle { display: flex; align-items: center; background: transparent; border: 1.5px solid rgba(0,0,0,0.14); border-radius: 100px; padding: 3px; gap: 2px; }
-        .ws-toggle-opt { padding: 5px 9px; border-radius: 100px; border: none; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 700; transition: all 0.2s; white-space: nowrap; line-height: 1; }
+        .ws-toggle-opt { padding: 5px 9px; border-radius: 100px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 700; transition: all 0.2s; white-space: nowrap; line-height: 1; }
         .ws-toggle-opt.active { background: var(--cream-card); color: var(--ink); box-shadow: 0 0 0 1.5px var(--cream-border); }
         .ws-toggle-opt:not(.active) { background: transparent; color: var(--ink-faint); opacity: 0.5; }
         .ws-toggle-opt:not(.active):hover { opacity: 1; }
@@ -1270,23 +1415,31 @@ export default function App() {
         .fab-icon { font-size: 22px; font-weight: 300; color: white; line-height: 1; flex-shrink: 0; }
         .fab-label { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; color: white; letter-spacing: 0.04em; max-width: 0; overflow: hidden; opacity: 0; transition: max-width 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s 0.1s; white-space: nowrap; }
         .fab-import:hover .fab-label { max-width: 120px; opacity: 1; }
+        .nav-btn { padding: 6px 14px; border-radius: 100px; border: 1.5px solid rgba(0,0,0,0.10); background: transparent; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: var(--ink-mid); cursor: pointer; transition: all 0.15s; letter-spacing: 0.01em; }
+        .nav-btn:hover { border-color: rgba(0,0,0,0.2); background: var(--cream-card); }
+        .nav-btn.active { background: var(--charcoal); border-color: var(--charcoal); color: white; }
       `}</style>
 
       <div className={dark ? "dark" : ""} style={{ background: "var(--cream)", minHeight: "100vh", padding: "48px 28px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
         <div className="fade-up" style={{ marginBottom: 28 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 32, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
-            <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase" }}>{eyebrow}</span>
+          <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 32, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'Inter', sans-serif", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
+            <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>{eyebrow}</span>
             <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
             <span>{accountLabel}</span>
             <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
             <span>{session.user.email}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
             <div>
               <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 26, fontWeight: 900, letterSpacing: "-0.01em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
               <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: "var(--ink-light)", marginTop: 5, fontStyle: "italic" }}>Welcome to your financial dashboard.</div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {/* View toggle */}
+              <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2, marginRight: 4 }}>
+                <button className={`nav-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Dashboard</button>
+                <button className={`nav-btn${view === "reports" ? " active" : ""}`} onClick={() => setView("reports")}>Reports</button>
+              </div>
               <div className="ws-toggle">
                 <button className={`ws-toggle-opt${isPro ? " active" : ""}`} onClick={() => setWorkspace("professional")} title="Professional">💼</button>
                 <button className={`ws-toggle-opt${!isPro ? " active" : ""}`} onClick={() => setWorkspace("personal")} title="Personal">👤</button>
@@ -1296,12 +1449,17 @@ export default function App() {
                 <button className={`ws-toggle-opt${dark ? " active" : ""}`} onClick={() => setDark(true)} title="Dark mode">🌙</button>
               </div>
               <button onClick={() => setShowCatManager(true)} title="Manage categories" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", color: "var(--ink-faint)", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>🗂️</button>
-              <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "5px 12px", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.05em" }}>Sign out</button>
+              <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "5px 12px", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.02em" }}>Sign out</button>
             </div>
           </div>
         </div>
 
-        <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} />
+        {view === "dashboard" && (
+          <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} />
+        )}
+        {view === "reports" && (
+          <FinancialReportGenerator session={session} workspace={workspace} />
+        )}
         {showCatManager && <CategoryManager categories={categories} onSave={handleSaveCategories} onClose={() => setShowCatManager(false)} />}
       </div>
     </>
