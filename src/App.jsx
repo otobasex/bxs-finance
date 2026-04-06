@@ -28,23 +28,38 @@ function buildCatMap(cats) {
 const FY_MONTHS = ["Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb"];
 const ALL_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function getFYLabel() {
+// FY 2025/26 = Mar 2025 – Feb 2026 (startYear = 2025).
+// FY 2026/27 = Mar 2026 – Feb 2027 (startYear = 2026).
+// In Apr 2026 (m=3, y=2026): month >= 2 → startYear = 2026. ✓ (we're in FY 2026/27)
+// In Jan 2026 (m=0, y=2026): month < 2  → startYear = 2025. ✓ (we're still in FY 2025/26)
+function currentFYStartYear() {
   const now = new Date();
-  const m = now.getMonth(); // 0-indexed
+  const m = now.getMonth();
   const y = now.getFullYear();
-  // FY starts March: if month >= 2 (Mar) then FY is y/y+1, else y-1/y
-  const startYear = m >= 2 ? y : y - 1;
-  return { startYear, endYear: startYear + 1 };
+  return m >= 2 ? y : y - 1;
 }
 
-function getFYMonths() {
-  // Returns array of { month (0-indexed), year, label } in FY order Mar→Feb
-  const { startYear } = getFYLabel();
+function getFYMonths(startYear) {
   return FY_MONTHS.map(mn => {
     const monthIdx = ALL_MONTHS.indexOf(mn);
     const year = monthIdx >= 2 ? startYear : startYear + 1;
     return { month: monthIdx, year, label: `${mn} ${year}` };
   });
+}
+
+// All FY start years present in data, plus current FY, newest first
+function getAllFYStartYears(allTransactions) {
+  const current = currentFYStartYear();
+  const fromTxs = new Set(
+    allTransactions.map(t => {
+      const d = new Date(t.date);
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      return m >= 2 ? y : y - 1;
+    })
+  );
+  fromTxs.add(current);
+  return [...fromTxs].sort((a, b) => b - a);
 }
 
 /* ─── FALLBACK CATEGORISER ─── */
@@ -222,7 +237,22 @@ function fmt(n, short = false) {
 /* ─── YEAR CHART ─── */
 function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
   const [tooltip, setTooltip] = useState(null);
-  const fyMonths = getFYMonths();
+  const [fyStartYear, setFyStartYear] = useState(() => currentFYStartYear());
+
+  const fyYears = useMemo(() => getAllFYStartYears(allTransactions), [allTransactions]);
+  const fyMonths = useMemo(() => getFYMonths(fyStartYear), [fyStartYear]);
+
+  const canGoBack = fyYears.some(y => y < fyStartYear);
+  const canGoFwd  = fyYears.some(y => y > fyStartYear);
+
+  const prevFY = () => {
+    const older = fyYears.filter(y => y < fyStartYear);
+    if (older.length) { setFyStartYear(Math.max(...older)); onSelectMonth(null); }
+  };
+  const nextFY = () => {
+    const newer = fyYears.filter(y => y > fyStartYear);
+    if (newer.length) { setFyStartYear(Math.min(...newer)); onSelectMonth(null); }
+  };
 
   const monthData = useMemo(() => {
     return fyMonths.map(({ month, year, label }) => {
@@ -234,7 +264,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
       const spend  = txs.filter(t => !t.isCredit).reduce((s, t) => s + t.amount, 0);
       return { month, year, label, income, spend, net: income - spend, hasTxs: txs.length > 0 };
     });
-  }, [allTransactions]);
+  }, [allTransactions, fyMonths]);
 
   const maxVal = Math.max(...monthData.map(m => Math.max(m.income, m.spend)), 1);
   const totalIncome = monthData.reduce((s, m) => s + m.income, 0);
@@ -250,8 +280,13 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, position: "relative", zIndex: 1 }}>
         <div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-            Financial Year · {getFYLabel().startYear}/{getFYLabel().endYear}
+          {/* FY Navigator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", color: canGoBack ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.15)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>‹</button>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>
+              Financial Year · {fyStartYear}/{fyStartYear + 1}
+            </div>
+            <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", color: canGoFwd ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.15)", fontSize: 16, lineHeight: 1, padding: "0 2px", transition: "color 0.15s" }}>›</button>
           </div>
           <div style={{ display: "flex", gap: 20 }}>
             <div>
