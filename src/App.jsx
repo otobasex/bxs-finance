@@ -1328,23 +1328,57 @@ export default function App() {
   const [workspace, setWorkspace] = useState("professional");
   const [showCatManager, setShowCatManager] = useState(false);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  const [view, setView] = useState("dashboard"); // "dashboard" | "reports"
+  const [view, setView] = useState("dashboard");
   const catMap = useMemo(() => buildCatMap(categories), [categories]);
 
+  // Safety net — if still loading after 8s, show login screen instead of spinning forever
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        const allowed = await checkAllowed(session.user.email);
-        if (!allowed) { await supabase.auth.signOut(); setAccessDenied(true); setSession(null); }
-        else { setSession(session); await loadCategories(setCategories); }
-      } else { setSession(null); }
-    });
+    const t = setTimeout(() => setSession(prev => prev === undefined ? null : prev), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          try {
+            const allowed = await Promise.race([
+              checkAllowed(session.user.email),
+              new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000))
+            ]);
+            if (!allowed) { await supabase.auth.signOut(); setAccessDenied(true); setSession(null); }
+            else { setSession(session); await loadCategories(setCategories); }
+          } catch {
+            // If allowed_users check times out or fails, allow through — better than infinite load
+            setSession(session);
+            await loadCategories(setCategories);
+          }
+        } else {
+          setSession(null);
+        }
+      } catch {
+        setSession(null);
+      }
+    };
+    init();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        const allowed = await checkAllowed(session.user.email);
-        if (!allowed) { await supabase.auth.signOut(); setAccessDenied(true); setSession(null); }
-        else { setSession(session); await loadCategories(setCategories); }
-      } else { setSession(null); }
+        try {
+          const allowed = await Promise.race([
+            checkAllowed(session.user.email),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000))
+          ]);
+          if (!allowed) { await supabase.auth.signOut(); setAccessDenied(true); setSession(null); }
+          else { setSession(session); await loadCategories(setCategories); }
+        } catch {
+          setSession(session);
+          await loadCategories(setCategories);
+        }
+      } else {
+        setSession(null);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1468,7 +1502,7 @@ export default function App() {
               <img
                 src={isPro ? AVATAR_BXS : AVATAR_OTO}
                 alt={eyebrow}
-                style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
+                style={{ width: 78, height: 78, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
               />
               <div>
                 <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 36, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
