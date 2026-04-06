@@ -347,12 +347,30 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
   const totalIncome = monthData.reduce((s, m) => s + m.income, 0);
   const totalSpend  = monthData.reduce((s, m) => s + m.spend, 0);
 
+  const bg        = dark ? "#111111"                  : "#FDF8F5";
+  const border    = dark ? "rgba(255,255,255,0.06)"   : "var(--cream-border)";
+  const gridLine  = dark ? "rgba(255,255,255,0.06)"   : "rgba(0,0,0,0.05)";
+  const fyColor   = dark ? "rgba(255,255,255,0.9)"    : "var(--ink)";
+  const arrowFill = dark ? "rgba(255,255,255,0.7)"    : "var(--ink-mid)";
+  const labelMute = dark ? "rgba(255,255,255,0.35)"   : "var(--ink-faint)";
+  const incomeCol = dark ? "#8EEC7C"                  : "#16a34a";
+  const spendCol  = dark ? "#FF9F99"                  : "#E31A51";
+  const netCol    = (n) => n >= 0 ? incomeCol : spendCol;
+  const clearBg   = dark ? "rgba(255,255,255,0.08)"   : "white";
+  const clearBd   = dark ? "rgba(255,255,255,0.12)"   : "var(--cream-border)";
+  const clearTxt  = dark ? "rgba(255,255,255,0.6)"    : "var(--ink-mid)";
+  const emptyBar  = dark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.06)";
+  const monthLbl  = (sel, empty) => sel ? (dark ? "rgba(255,255,255,0.9)" : "var(--ink)") : empty ? (dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.15)") : (dark ? "rgba(255,255,255,0.35)" : "var(--ink-faint)");
+  const selBorder = dark ? "rgba(255,255,255,0.08)"   : "var(--cream-border)";
+  const selTxtMute= dark ? "rgba(255,255,255,0.4)"    : "var(--ink-faint)";
+  const selTxtHi  = dark ? "rgba(255,255,255,0.9)"    : "var(--ink)";
+
   return (
-    <div style={{ background: "#111111", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "var(--r-xl)", padding: "20px 24px 16px", marginBottom: 14, position: "relative", overflow: "visible" }}>
+    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--r-xl)", padding: "20px 24px 16px", marginBottom: 14, position: "relative", overflow: "visible" }}>
       {/* bg grid lines */}
       <div style={{ position: "absolute", left: 24, right: 24, top: 52, bottom: 40, pointerEvents: "none", zIndex: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         {[0,1,2,3,4].map(i => (
-          <div key={i} style={{ width: "100%", height: "1px", background: "rgba(255,255,255,0.06)" }} />
+          <div key={i} style={{ width: "100%", height: "1px", background: gridLine }} />
         ))}
       </div>
 
@@ -362,33 +380,33 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
           {/* FY Navigator */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoBack ? 1 : 0.2, transition: "opacity 0.15s" }}>
-              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill="rgba(255,255,255,0.7)"/></svg>
+              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill={arrowFill}/></svg>
             </button>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.9)" }}>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: fyColor }}>
               FY {fyStartYear}/{fyStartYear + 1}
             </div>
             <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoFwd ? 1 : 0.2, transition: "opacity 0.15s" }}>
-              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill="rgba(255,255,255,0.7)"/></svg>
+              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill={arrowFill}/></svg>
             </button>
           </div>
           {/* Totals */}
           <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
             <div>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Income  </span>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: "#8EEC7C" }}>{fmt(totalIncome, true)}</span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: labelMute }}>Income  </span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: incomeCol }}>{fmt(totalIncome, true)}</span>
             </div>
             <div>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Spend  </span>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: "#FF9F99" }}>{fmt(totalSpend, true)}</span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: labelMute }}>Spend  </span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: spendCol }}>{fmt(totalSpend, true)}</span>
             </div>
             <div>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Net  </span>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: totalIncome - totalSpend >= 0 ? "#8EEC7C" : "#FF9F99" }}>{fmt(totalIncome - totalSpend, true)}</span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: labelMute }}>Net  </span>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: netCol(totalIncome - totalSpend) }}>{fmt(totalIncome - totalSpend, true)}</span>
             </div>
           </div>
         </div>
         {selectedMonth && (
-          <button onClick={() => onSelectMonth(null)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 100, padding: "4px 12px", color: "rgba(255,255,255,0.6)", fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
+          <button onClick={() => onSelectMonth(null)} style={{ background: clearBg, border: `1px solid ${clearBd}`, borderRadius: 100, padding: "4px 12px", color: clearTxt, fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
             Clear ✕
           </button>
         )}
@@ -424,16 +442,14 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
               )}
 
               {/* Bar pair — thin pill bars with gradient */}
-              <div style={{ width: "100%", display: "flex", gap: 1, alignItems: "flex-end", height: 96, paddingBottom: 0 }}>
+              <div style={{ width: "100%", display: "flex", gap: 0, alignItems: "flex-end", height: 96, paddingBottom: 0 }}>
                 {/* Income bar */}
                 <div style={{
                   flex: 1,
-                  maxWidth: 8,
-                  margin: "0 auto",
+                  maxWidth: 7,
+                  margin: "0 1px 0 auto",
                   height: isEmpty ? 3 : `${incomeH}%`,
-                  background: isEmpty
-                    ? "rgba(255,255,255,0.08)"
-                    : "linear-gradient(to bottom, #8EEC7C, #C0EFDE)",
+                  background: isEmpty ? emptyBar : "linear-gradient(to bottom, #8EEC7C, #C0EFDE)",
                   borderRadius: 100,
                   transition: "all 0.3s ease",
                   opacity: isEmpty ? 1 : dimmed ? 0.2 : 1,
@@ -442,12 +458,10 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
                 {/* Spend bar */}
                 <div style={{
                   flex: 1,
-                  maxWidth: 8,
-                  margin: "0 auto",
+                  maxWidth: 7,
+                  margin: "0 auto 0 1px",
                   height: isEmpty ? 3 : `${spendH}%`,
-                  background: isEmpty
-                    ? "rgba(255,255,255,0.08)"
-                    : "linear-gradient(to bottom, #FF9F99, #FFCECD)",
+                  background: isEmpty ? emptyBar : "linear-gradient(to bottom, #FF9F99, #FFCECD)",
                   borderRadius: 100,
                   transition: "all 0.3s ease",
                   opacity: isEmpty ? 1 : dimmed ? 0.2 : 1,
@@ -459,7 +473,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
               <div style={{
                 fontFamily: "'Inter', sans-serif",
                 fontSize: 8, fontWeight: isSelected ? 700 : 400,
-                color: isSelected ? "rgba(255,255,255,0.9)" : isEmpty ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.35)",
+                color: monthLbl(isSelected, isEmpty),
                 letterSpacing: "0.06em", textTransform: "uppercase",
                 transition: "color 0.2s",
                 paddingTop: 6,
@@ -474,8 +488,8 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
 
       {/* Selected month indicator */}
       {selectedMonth && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em" }}>
-          Showing  <span style={{ color: "rgba(255,255,255,0.9)", fontWeight: 700 }}>{selectedMonth.label}</span>  below · Click bar again or Clear to see full year
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${selBorder}`, fontFamily: "'Inter', sans-serif", fontSize: 10, color: selTxtMute, letterSpacing: "0.06em" }}>
+          Showing  <span style={{ color: selTxtHi, fontWeight: 700 }}>{selectedMonth.label}</span>  below · Click bar again or Clear to see full year
         </div>
       )}
     </div>
