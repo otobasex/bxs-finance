@@ -1328,7 +1328,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
       }));
       await insertTransactions(txRows);
-      const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: sanitised };
+      const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
       setStatements(prev => {
         const updated = sortStatements([...prev, newEntry]);
         setActiveStmt(updated.length - 1);
@@ -1461,16 +1461,22 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
       const ca = new AbortController();
       const ct = setTimeout(() => ca.abort(), 15000);
-      signal?.addEventListener("abort", () => ca.abort());
+      // Use a named handler + { once: true } so it auto-removes after firing.
+      // The old anonymous () => ca.abort() was never removed, causing N listeners
+      // to stack up (one per chunk) on the outer signal — this froze the tab.
+      const onAbort = () => ca.abort();
+      signal?.addEventListener("abort", onAbort, { once: true });
       try {
         await sbFetch("transactions", chunk, "return=minimal", ca.signal);
       } catch(e) {
         clearTimeout(ct);
+        signal?.removeEventListener("abort", onAbort);
         await supabase.from("statements").delete().eq("id", newStmt.id);
         if (e.name === "AbortError" || signal?.aborted) throw new Error("Import cancelled.");
         throw new Error(`Failed chunk ${i}–${done}: ${e.message}`);
       }
       clearTimeout(ct);
+      signal?.removeEventListener("abort", onAbort);
     }
 
     onProgress?.("Done!");
