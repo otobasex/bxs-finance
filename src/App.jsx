@@ -1236,17 +1236,24 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
   const catNames = categories.map(c => c.name);
 
-  /* Load statements — 2 queries total instead of N+1 */
+  /* Load statements — sequential with progressive rendering */
   useEffect(() => {
     const load = async () => {
       setDbLoading(true);
       try {
-        const { data: stmts, error: stmtsErr } = await Promise.race([
-          supabase.from("statements").select("*")
-            .eq("user_id", userId).eq("workspace", workspace).order("created_at"),
-          new Promise((_, rej) => setTimeout(() => rej(new Error("statements query timed out after 8s — check Supabase RLS policies")), 8000))
+        // Use native fetch for statements query — Supabase JS client cold-starts are slow
+        // and the Promise.race timeout was firing before the query could complete.
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || supabase.supabaseKey;
+        const stmtsRes = await Promise.race([
+          fetch(
+            `${supabase.supabaseUrl}/rest/v1/statements?select=*&user_id=eq.${userId}&workspace=eq.${encodeURIComponent(workspace)}&order=created_at`,
+            { headers: { "apikey": supabase.supabaseKey, "Authorization": `Bearer ${token}` } }
+          ),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("statements query timed out after 20s")), 20000))
         ]);
-        if (stmtsErr) throw stmtsErr;
+        if (!stmtsRes.ok) throw new Error(`statements fetch failed: ${stmtsRes.status}`);
+        const stmts = await stmtsRes.json();
         if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
 
         // Load each statement's transactions individually in parallel.
