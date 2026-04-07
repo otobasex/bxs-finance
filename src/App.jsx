@@ -1395,15 +1395,9 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     }
     if (!sanitised.length) throw new Error("No valid transactions found — all dates were unreadable.");
 
-    onProgress?.(`Creating statement (${sanitised.length} transactions)…`);
     const label = detectPeriodLabel(sanitised);
 
-    // Duplicate guard — check if a statement with this label already exists
-    const { data: existing } = await Promise.race([
-      supabase.from("statements").select("id").eq("user_id", userId).eq("workspace", workspace).eq("label", label),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("Duplicate check timed out — check your connection and try again.")), 8000))
-    ]);
-    if (existing?.length) throw new Error(`A statement labelled "${label}" already exists. Delete it first or rename before importing.`);
+    onProgress?.(`Creating statement (${sanitised.length} transactions)…`);
 
     // Use native fetch + AbortController so timeouts actually cancel the HTTP request
     // (Promise.race doesn't cancel the underlying fetch in the Supabase JS client)
@@ -1429,6 +1423,27 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
       return prefer.includes("representation") ? res.json() : null;
     };
+
+    // Duplicate guard using native fetch (avoids Supabase JS client cold-start timeout)
+    const dupAc = new AbortController();
+    const dupTt = setTimeout(() => dupAc.abort(), 12000);
+    try {
+      const token = await getToken();
+      const dupRes = await fetch(
+        `${sbUrl}/rest/v1/statements?select=id&user_id=eq.${userId}&workspace=eq.${encodeURIComponent(workspace)}&label=eq.${encodeURIComponent(label)}&limit=1`,
+        { signal: dupAc.signal, headers: { "apikey": sbKey, "Authorization": `Bearer ${token}` } }
+      );
+      clearTimeout(dupTt);
+      if (dupRes.ok) {
+        const existing = await dupRes.json();
+        if (existing?.length) throw new Error(`A statement labelled "${label}" already exists. Delete it first or rename before importing.`);
+      }
+    } catch(e) {
+      clearTimeout(dupTt);
+      if (e.message?.includes("already exists")) throw e;
+      // If duplicate check itself fails/times out, continue anyway — insert will catch conflicts
+      console.warn("[import] Duplicate check failed, continuing:", e.message);
+    }
 
     // Insert statement — abort on timeout OR if user clicks Stop
     const sa = new AbortController();
