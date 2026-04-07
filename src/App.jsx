@@ -115,6 +115,90 @@ ${toClassify.map(t => `{"id":${t.id},"desc":"${t.description}","amount":${t.amou
   return transactions.map(t => ({ ...t, category: t.isCredit ? "Income" : (map[t.id] || t.category), aiCategorised: !t.isCredit && !!map[t.id] }));
 }
 
+
+/* ─── PDF PARSER (AI-powered via Claude document vision) ─── */
+async function parsePDFWithAI(file, catNames, onStatus) {
+  onStatus("Reading PDF…");
+  const base64 = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result.split(",")[1]);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+
+  onStatus("Sending to Claude — extracting transactions…");
+  const prompt = `You are parsing a South African FNB bank statement PDF. Extract every transaction and return ONLY a JSON array — no markdown, no explanation, nothing else.
+
+Each object must have exactly these fields:
+- "date": "DD Mon YYYY" format, e.g. "09 Feb 2026"
+- "description": full transaction description string
+- "debit": number (money out) or null
+- "credit": number (money in) or null
+
+Rules:
+- Amounts with "Cr" suffix are credits (money in)
+- Amounts without "Cr" are debits (money out)  
+- Opening/Closing Balance lines are NOT transactions — skip them
+- Bank charge accrual column values are NOT transaction amounts — ignore them
+- Include bank fee rows (#Monthly Account Fee, #Service Fees etc) as debits
+- Include reversal/refund rows as credits
+- Every row in the Transactions table must appear exactly once
+
+Return only the JSON array.`;
+
+  const response = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+          { type: "text", text: prompt }
+        ]
+      }]
+    }),
+  });
+
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  const data = await response.json();
+  const raw = data.content?.map(c => c.text || "").join("") || "";
+  const cleaned = raw.replace(/```json|```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  onStatus("Building transactions…");
+  const monthMap = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+  const transactions = [];
+  for (const row of parsed) {
+    const parts = String(row.date || "").trim().split(" ");
+    if (parts.length < 3) continue;
+    const day = parseInt(parts[0]);
+    const monthIdx = monthMap[parts[1]];
+    const year = parseInt(parts[2]);
+    if (isNaN(day) || monthIdx === undefined || isNaN(year)) continue;
+    const isCredit = !!(row.credit && row.credit > 0);
+    const amount = isCredit ? parseFloat(row.credit) : parseFloat(row.debit);
+    if (!amount || amount <= 0) continue;
+    const desc = String(row.description || "").trim();
+    if (!desc) continue;
+    const dateStr = `${parts[1]} ${day}`;
+    transactions.push({
+      id: transactions.length,
+      date: new Date(year, monthIdx, day),
+      dateStr,
+      description: desc,
+      amount,
+      isCredit,
+      category: categoriseFallback(desc, isCredit, catNames),
+      aiCategorised: false,
+      manualCategory: null,
+    });
+  }
+  return transactions;
+}
+
 /* ─── PARSE STATEMENT ─── */
 function parseStatement(text, catNames) {
   const transactions = [];
@@ -153,7 +237,8 @@ function sortStatements(stmts) {
 }
 
 /* ─── SPREADSHEET PARSER ─── */
-async function parseSpreadsheet(file) {
+// Returns structured transaction array directly — no fragile text round-trip
+async function parseSpreadsheet(file, catNames) {
   if (!window.XLSX) {
     await new Promise((res, rej) => {
       const s = document.createElement("script");
@@ -169,18 +254,38 @@ async function parseSpreadsheet(file) {
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
   if (rows.length < 2) return [];
   const MNS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const formatDate = (raw) => {
+  const monthMap = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+
+  // Parse a raw cell value into { day, monthIdx, year } — handles Date objects and all common string formats
+  const parseDate = (raw) => {
     if (!raw) return null;
-    if (raw instanceof Date && !isNaN(raw)) return `${String(raw.getDate()).padStart(2,"0")} ${MNS[raw.getMonth()]}`;
+    if (raw instanceof Date && !isNaN(raw)) return { day: raw.getDate(), monthIdx: raw.getMonth(), year: raw.getFullYear() };
     const s = String(raw).trim();
-    const m0 = s.match(/^(\d{1,2})\s+([A-Za-z]{3})/);
-    if (m0) { const mo = MNS.findIndex(m => m.toLowerCase() === m0[2].toLowerCase()); if (mo !== -1) return `${String(parseInt(m0[1])).padStart(2,"0")} ${MNS[mo]}`; }
+    // "09 Feb 2026" or "9 Feb 2026" or "09 Feb"
+    const m0 = s.match(/^(\d{1,2})\s+([A-Za-z]{3})(?:\s+(\d{4}))?/);
+    if (m0) {
+      const mi = monthMap[m0[2].toLowerCase()];
+      if (mi !== undefined) {
+        const year = m0[3] ? parseInt(m0[3]) : (mi >= 2 ? currentFYStartYear() : currentFYStartYear() + 1);
+        return { day: parseInt(m0[1]), monthIdx: mi, year };
+      }
+    }
+    // "09/02/2026" or "09-02-2026" (DD/MM/YYYY)
     const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-    if (m1) { const d=parseInt(m1[1]),mo=parseInt(m1[2])-1; if(mo>=0&&mo<12) return `${String(d).padStart(2,"0")} ${MNS[mo]}`; }
+    if (m1) {
+      const d=parseInt(m1[1]), mi=parseInt(m1[2])-1, y=parseInt(m1[3]);
+      if (mi >= 0 && mi < 12) return { day: d, monthIdx: mi, year: y < 100 ? 2000 + y : y };
+    }
+    // "2026/02/09" (YYYY/MM/DD)
     const m2 = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
-    if (m2) { const mo=parseInt(m2[2])-1,d=parseInt(m2[3]); if(mo>=0&&mo<12) return `${String(d).padStart(2,"0")} ${MNS[mo]}`; }
+    if (m2) {
+      const mi=parseInt(m2[2])-1, d=parseInt(m2[3]);
+      if (mi >= 0 && mi < 12) return { day: d, monthIdx: mi, year: parseInt(m2[1]) };
+    }
     return null;
   };
+
+  // Find header row
   let headerIdx = -1;
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const cells = rows[i].map(c => String(c).toLowerCase().trim());
@@ -190,6 +295,7 @@ async function parseSpreadsheet(file) {
     if (hasDate && (hasAmt || hasDesc)) { headerIdx = i; break; }
   }
   if (headerIdx === -1) return [];
+
   const headers = rows[headerIdx].map(h => String(h).toLowerCase().trim());
   const col = (terms) => headers.findIndex(h => terms.some(t => h.includes(t)));
   const dateIdx = col(["date"]);
@@ -199,35 +305,45 @@ async function parseSpreadsheet(file) {
   const debIdx  = col(["debit","withdrawal","money out"]);
   if (dateIdx === -1) return [];
   const resolvedDescIdx = descIdx !== -1 ? descIdx : 2;
-  const results = [];
+
+  const transactions = [];
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
-    const dateRaw = row[dateIdx];
+    const parsed = parseDate(row[dateIdx]);
+    if (!parsed) continue;
     const desc = String(row[resolvedDescIdx] || "").trim();
-    const dateStr = formatDate(dateRaw);
-    if (!dateStr || !desc || desc.toLowerCase() === "description") continue;
+    if (!desc || desc.toLowerCase() === "description") continue;
+
     let amount = 0, isCredit = false;
     if (credIdx !== -1 && debIdx !== -1) {
-      const credRaw = String(row[credIdx] || "").replace(/[^\d.]/g, "");
-      const debRaw  = String(row[debIdx]  || "").replace(/[^\d.]/g, "");
-      const cred = parseFloat(credRaw) || 0;
-      const deb  = parseFloat(debRaw)  || 0;
-      if (cred > 0) { amount = cred; isCredit = true; }
-      else if (deb > 0) { amount = deb; isCredit = false; }
+      const cred = parseFloat(String(row[credIdx] || "").replace(/[^\d.]/g, "")) || 0;
+      const deb  = parseFloat(String(row[debIdx]  || "").replace(/[^\d.]/g, "")) || 0;
+      if (cred > 0)      { amount = cred; isCredit = true; }
+      else if (deb > 0)  { amount = deb;  isCredit = false; }
       else continue;
     } else if (amtIdx !== -1) {
       const raw = String(row[amtIdx] || "").trim();
       if (!raw) continue;
-      const hasCr = /cr$/i.test(raw);
-      const num = parseFloat(raw.replace(/[^\d.\-]/g, "")) || 0;
-      if (num === 0) continue;
-      isCredit = hasCr;
-      amount = Math.abs(num);
+      isCredit = /cr$/i.test(raw);
+      amount = Math.abs(parseFloat(raw.replace(/[^\d.\-]/g, "")) || 0);
     } else continue;
     if (amount === 0) continue;
-    results.push(`${dateStr} ${desc} ${amount.toFixed(2)}${isCredit ? "Cr" : ""} 0.00`);
+
+    const { day, monthIdx, year } = parsed;
+    const dateStr = `${MNS[monthIdx]} ${day}`;
+    transactions.push({
+      id: transactions.length,
+      date: new Date(year, monthIdx, day),
+      dateStr,
+      description: desc,
+      amount,
+      isCredit,
+      category: categoriseFallback(desc, isCredit, catNames || []),
+      aiCategorised: false,
+      manualCategory: null,
+    });
   }
-  return results.join("\n");
+  return transactions;
 }
 
 /* ─── LOGIN SCREEN ─── */
@@ -594,63 +710,171 @@ function EditTxModal({ transaction, categories, catMap, onSave, onClose }) {
   );
 }
 
-/* ─── IMPORT MODAL (kept from original) ─── */
-function ImportModal({ open, onClose, onImport }) {
-  const [text, setText] = useState("");
-  const [dragging, setDragging] = useState(false);
-  const [fileName, setFileName] = useState("");
+/* ─── IMPORT MODAL ─── */
+function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
+  const [text, setText]           = useState("");
+  const [dragging, setDragging]   = useState(false);
+  const [fileName, setFileName]   = useState("");
   const [processing, setProcessing] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState("");  // live status string during PDF parse
+  const [pdfPreview, setPdfPreview] = useState(null); // { transactions, count } after parse
+  const [pdfError, setPdfError]   = useState("");
+
+  const resetPdf = () => { setPdfPreview(null); setPdfStatus(""); setPdfError(""); setFileName(""); };
 
   const processFile = async (file) => {
-    setProcessing(true);
+    const ext = file.name.split(".").pop().toLowerCase();
     setFileName(file.name);
-    try {
-      const ext = file.name.split(".").pop().toLowerCase();
-      if (ext === "csv" || ext === "xlsx" || ext === "xls") {
-        const result = await parseSpreadsheet(file);
-        setText(result);
-      } else {
-        const t = await file.text();
-        setText(t);
+    setPdfError("");
+
+    if (ext === "pdf") {
+      // ── PDF path: AI extraction ──
+      setProcessing(true);
+      setPdfStatus("Reading PDF…");
+      setPdfPreview(null);
+      try {
+        const txs = await parsePDFWithAI(file, catNames || [], msg => setPdfStatus(msg));
+        if (!txs.length) throw new Error("No transactions found in PDF.");
+        setPdfPreview({ transactions: txs, fileName: file.name });
+        setPdfStatus("");
+      } catch (e) {
+        setPdfError(e.message || "PDF parsing failed.");
+        setPdfStatus("");
+        setFileName("");
       }
-    } catch { setText(""); alert("Could not read file."); }
-    setProcessing(false);
+      setProcessing(false);
+    } else if (ext === "csv" || ext === "xlsx" || ext === "xls") {
+      // ── Spreadsheet path: parse directly to structured transactions ──
+      setProcessing(true);
+      try {
+        const txs = await parseSpreadsheet(file, catNames || []);
+        if (!txs.length) throw new Error("No transactions found in spreadsheet.");
+        setPdfPreview({ transactions: txs, fileName: file.name });
+      } catch (e) {
+        setPdfError(e.message || "Could not read spreadsheet.");
+        setFileName("");
+      }
+      setProcessing(false);
+    } else {
+      // ── Text/paste path ──
+      setProcessing(true);
+      try { setText(await file.text()); }
+      catch { setText(""); alert("Could not read file."); }
+      setProcessing(false);
+    }
   };
 
   if (!open) return null;
+
+  const canImportText = text.trim().length > 0;
+  const canImportPdf  = !!pdfPreview;
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => { onClose(); resetPdf(); }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(3px)" }} />
-      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 32, width: 520, maxWidth: "95vw", zIndex: 101, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column", gap: 18 }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 24, padding: 32, width: 540, maxWidth: "95vw", zIndex: 101, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column", gap: 18 }}>
+
+        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Import Statement</div>
-          <button onClick={onClose} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button onClick={() => { onClose(); resetPdf(); }} style={{ background: "transparent", border: "1.5px solid var(--cream-border)", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "var(--ink-light)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={async e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) await processFile(f); }}
-          style={{ border: `2px dashed ${dragging ? "var(--red)" : "var(--cream-border)"}`, borderRadius: 14, padding: "28px 20px", textAlign: "center", transition: "all 0.15s", background: dragging ? "rgba(227,26,81,0.04)" : "var(--cream)", cursor: "pointer" }}
-          onClick={() => document.getElementById("file-input-hidden").click()}
-        >
-          <input id="file-input-hidden" type="file" accept=".txt,.csv,.xlsx,.xls" style={{ display: "none" }} onChange={async e => { const f = e.target.files[0]; if (f) await processFile(f); }} />
-          {processing ? (
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Processing…</div>
-          ) : fileName ? (
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", fontWeight: 600 }}>📄 {fileName}</div>
-          ) : (
-            <>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Drop file or click to browse</div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", marginTop: 4, opacity: 0.6 }}>TXT · CSV · XLSX · XLS</div>
-            </>
-          )}
-        </div>
-        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Or paste statement text</div>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={6} placeholder="Paste your bank statement text here…" style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, lineHeight: 1.7, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--cream-border)", background: "var(--cream)", color: "var(--ink)", resize: "vertical", outline: "none" }} />
+
+        {/* Drop zone */}
+        {!pdfPreview && (
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={async e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) await processFile(f); }}
+            style={{ border: `2px dashed ${dragging ? "var(--red)" : "var(--cream-border)"}`, borderRadius: 14, padding: "28px 20px", textAlign: "center", transition: "all 0.15s", background: dragging ? "rgba(227,26,81,0.04)" : "var(--cream)", cursor: "pointer" }}
+            onClick={() => document.getElementById("file-input-hidden").click()}
+          >
+            <input id="file-input-hidden" type="file" accept=".txt,.csv,.xlsx,.xls,.pdf" style={{ display: "none" }} onChange={async e => { const f = e.target.files[0]; if (f) await processFile(f); e.target.value = ""; }} />
+            {processing ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                <div className="ai-spinner" style={{ width: 20, height: 20, borderWidth: 2.5 }} />
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#6366f1", fontWeight: 600 }}>{pdfStatus || "Processing…"}</div>
+              </div>
+            ) : fileName && !pdfError ? (
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", fontWeight: 600 }}>📄 {fileName}</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Drop file or click to browse</div>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", marginTop: 4, opacity: 0.7 }}>PDF · TXT · CSV · XLSX · XLS</div>
+                <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 100, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                  <span style={{ fontSize: 9, color: "#6366f1", fontFamily: "'Inter',sans-serif", fontWeight: 700, letterSpacing: "0.06em" }}>✦ PDF auto-parsed by Claude</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* PDF error */}
+        {pdfError && (
+          <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(227,26,81,0.06)", border: "1px solid rgba(227,26,81,0.2)", fontFamily: "'Inter',sans-serif", fontSize: 11, color: "var(--red)" }}>
+            ⚠ {pdfError}
+          </div>
+        )}
+
+        {/* PDF preview card — shown after successful parse */}
+        {pdfPreview && (
+          <div style={{ borderRadius: 14, border: "1px solid var(--cream-border)", overflow: "hidden" }}>
+            {/* Preview header */}
+            <div style={{ padding: "14px 18px", background: "rgba(99,102,241,0.06)", borderBottom: "1px solid var(--cream-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6366f1" }}>
+                {/\.pdf$/i.test(pdfPreview.fileName) ? "✦ Claude extracted" : "✓ Parsed"} {pdfPreview.transactions.length} transactions
+              </div>
+                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "var(--ink-light)", marginTop: 2 }}>📄 {pdfPreview.fileName}</div>
+              </div>
+              <button onClick={resetPdf} style={{ background: "transparent", border: "1px solid var(--cream-border)", borderRadius: 100, padding: "3px 10px", cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 9, color: "var(--ink-faint)", letterSpacing: "0.05em" }}>Change file</button>
+            </div>
+            {/* Transaction preview list */}
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {pdfPreview.transactions.slice(0, 8).map((t, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", borderBottom: "1px solid var(--cream-border)", background: i % 2 ? "var(--cream)" : "transparent" }}>
+                  <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, color: "var(--ink-faint)", whiteSpace: "nowrap", width: 44 }}>{t.dateStr}</span>
+                  <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "var(--ink-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>
+                  <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, fontWeight: 600, color: t.isCredit ? "#3D8C6F" : "var(--red)", whiteSpace: "nowrap" }}>{t.isCredit ? "+" : "−"}R {t.amount.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</span>
+                </div>
+              ))}
+              {pdfPreview.transactions.length > 8 && (
+                <div style={{ padding: "8px 18px", fontFamily: "'Inter',sans-serif", fontSize: 10, color: "var(--ink-faint)", textAlign: "center" }}>
+                  + {pdfPreview.transactions.length - 8} more transactions
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Text paste — only show when no PDF loaded */}
+        {!pdfPreview && (
+          <>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Or paste statement text</div>
+            <textarea value={text} onChange={e => setText(e.target.value)} rows={5} placeholder="Paste your bank statement text here…" style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, lineHeight: 1.7, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--cream-border)", background: "var(--cream)", color: "var(--ink)", resize: "vertical", outline: "none" }} />
+          </>
+        )}
+
+        {/* Action buttons */}
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => { if (text.trim()) { onImport(text); setText(""); setFileName(""); } }} disabled={!text.trim()} style={{ flex: 2, padding: "11px", borderRadius: 100, background: text.trim() ? "var(--grad)" : "var(--cream-border)", border: "none", color: text.trim() ? "white" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: text.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>Import Statement</button>
+          <button onClick={() => { onClose(); resetPdf(); }} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
+          {canImportPdf ? (
+            <button
+              onClick={() => { onImportDirect(pdfPreview.transactions); resetPdf(); }}
+              style={{ flex: 2, padding: "11px", borderRadius: 100, background: "var(--grad)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+            >
+              Import {pdfPreview.transactions.length} Transactions
+            </button>
+          ) : (
+            <button
+              onClick={() => { if (canImportText) { onImport(text); setText(""); setFileName(""); } }}
+              disabled={!canImportText}
+              style={{ flex: 2, padding: "11px", borderRadius: 100, background: canImportText ? "var(--grad)" : "var(--cream-border)", border: "none", color: canImportText ? "white" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: canImportText ? "pointer" : "not-allowed", transition: "all 0.15s" }}
+            >
+              Import Statement
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -855,6 +1079,23 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   /* Import */
   const handleImport = async (text) => {
     const parsed = parseStatement(text, catNames);
+    if (!parsed.length) { alert("No transactions found."); return; }
+    const label = detectPeriodLabel(parsed);
+    const { data: newStmt } = await supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single();
+    if (!newStmt) { alert("Failed to save statement."); return; }
+    const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
+    await supabase.from("transactions").insert(txRows);
+    const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
+    setStatements(prev => {
+      const updated = sortStatements([...prev, newEntry]);
+      setActiveStmt(updated.length - 1);
+      return updated;
+    });
+    setShowImport(false); setAiStatus(null);
+  };
+
+  // Direct import path for PDF-parsed transactions (already structured, skip text parsing)
+  const handleImportDirect = async (parsed) => {
     if (!parsed.length) { alert("No transactions found."); return; }
     const label = detectPeriodLabel(parsed);
     const { data: newStmt } = await supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single();
@@ -1224,7 +1465,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         </div>
       </>}
 
-      <ImportModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} />
+      <ImportModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} onImportDirect={handleImportDirect} catNames={catNames} />
       {pickerTx && <CategoryPicker transaction={pickerTx} categories={categories} onSelect={handleManualCategory} onClose={() => setPickerTx(null)} />}
       {editTx && <EditTxModal transaction={editTx} categories={categories} catMap={catMap} onSave={handleEditSave} onClose={() => setEditTx(null)} />}
       {showCustomRange && <CustomRangePicker onApply={(from, to) => { setCustomRange({ from, to }); setShowCustomRange(false); setActiveCategory(null); setSearch(""); }} onClose={() => setShowCustomRange(false)} />}
