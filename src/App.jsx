@@ -1315,7 +1315,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
       }));
       await insertTransactions(txRows);
-      const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
+      const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: sanitised };
       setStatements(prev => {
         const updated = sortStatements([...prev, newEntry]);
         setActiveStmt(updated.length - 1);
@@ -1352,8 +1352,28 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const handleImportDirect = async (parsed, signal, onProgress) => {
     if (!parsed.length) throw new Error("No transactions found.");
 
-    onProgress?.("Creating statement…");
-    const label = detectPeriodLabel(parsed);
+    // Validate dates first — a single bad Date object causes toISOString() to throw
+    // synchronously and kills the entire function before any network request fires
+    const sanitised = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const t = parsed[i];
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      if (isNaN(d.getTime())) {
+        console.warn(`Skipping transaction ${i} with invalid date:`, t.dateStr, t.description);
+        continue;
+      }
+      sanitised.push({ ...t, date: d });
+    }
+    if (!sanitised.length) throw new Error("No valid transactions found — all dates were unreadable.");
+
+    onProgress?.(`Creating statement (${sanitised.length} transactions)…`);
+    const label = detectPeriodLabel(sanitised);
+
+    // Duplicate guard — check if a statement with this label already exists
+    const { data: existing } = await supabase
+      .from("statements").select("id").eq("user_id", userId).eq("workspace", workspace).eq("label", label);
+    if (existing?.length) throw new Error(`A statement labelled "${label}" already exists. Delete it first or rename before importing.`);
+
     const stmtTimeout = new Promise((_, rej) =>
       setTimeout(() => rej(new Error("Statement insert timed out — check Supabase connection.")), 10000)
     );
@@ -1364,9 +1384,9 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     if (stmtErr) throw new Error(stmtErr.message);
     if (!newStmt) throw new Error("Statement insert returned no data.");
 
-    const txRows = parsed.map(t => ({
+    const txRows = sanitised.map(t => ({
       statement_id: newStmt.id, local_id: t.id,
-      date: t.date instanceof Date ? t.date.toISOString() : new Date(t.date).toISOString(),
+      date: t.date.toISOString(),
       date_str: t.dateStr, description: t.description, amount: t.amount,
       is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
     }));
