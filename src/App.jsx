@@ -1225,30 +1225,21 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         if (stmtsErr) throw stmtsErr;
         if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
 
-        const stmtIds = stmts.map(s => s.id);
-        // Load 2 FYs worth of transactions (current + previous) — enough for all current data,
-        // prevents pulling 7 years at once. Full pagination refactor comes later.
-        const twoFYsAgo = new Date(currentFYStartYear() - 1, 2, 1); // Mar 1, two years back
-        const { data: allTxRows, error: txErr } = await supabase
-          .from("transactions").select("*")
-          .in("statement_id", stmtIds)
-          .gte("date", twoFYsAgo.toISOString())
-          .order("local_id");
-        if (txErr) throw txErr;
-
-        // Group transactions by statement_id client-side
-        const txByStmt = {};
-        (allTxRows || []).forEach(t => {
-          if (!txByStmt[t.statement_id]) txByStmt[t.statement_id] = [];
-          txByStmt[t.statement_id].push({
+        // Load each statement's transactions individually in parallel.
+        // Avoids the slow .in() with many UUIDs — each query is simple and fast.
+        // Limit to 20 most recent statements to cap total data loaded.
+        const recentStmts = stmts.slice(-20);
+        const results = await Promise.all(recentStmts.map(async s => {
+          const { data: txs } = await supabase
+            .from("transactions").select("*")
+            .eq("statement_id", s.id)
+            .order("local_id")
+            .limit(500); // safety cap per statement
+          const transactions = (txs || []).map(t => ({
             ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
             isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
-          });
-        });
-
-        const results = stmts.map(s => ({
-          id: s.id, label: s.label, sortOrder: s.sort_order ?? null,
-          transactions: txByStmt[s.id] || []
+          }));
+          return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
         }));
         setStatements(sortStatements(results));
       } catch (e) {
