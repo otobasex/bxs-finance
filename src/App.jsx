@@ -1249,12 +1249,14 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         // Avoids the slow .in() with many UUIDs — each query is simple and fast.
         // Limit to 20 most recent statements to cap total data loaded.
         const recentStmts = stmts.slice(-20);
+        const TX_LIMIT = 2000; // raised from 500 — monthly statements can exceed 500 rows
         const results = await Promise.all(recentStmts.map(async s => {
           const { data: txs } = await supabase
             .from("transactions").select("*")
             .eq("statement_id", s.id)
             .order("local_id")
-            .limit(500); // safety cap per statement
+            .limit(TX_LIMIT);
+          if (txs?.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap — some transactions may be missing.`);
           const transactions = (txs || []).map(t => ({
             ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
             isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
