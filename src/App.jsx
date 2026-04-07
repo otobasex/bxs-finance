@@ -1255,29 +1255,35 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         const recentStmts = stmts.slice(-20);
         const TX_LIMIT = 2000;
 
-        // Load in batches of 4 — firing 20 parallel queries floods Supabase connections
-        // and causes hangs, especially on the personal workspace with more statements.
+        // Load statements sequentially — parallel queries flood Supabase on the personal
+        // workspace which has large statements (600+ rows). Sequential is slower but reliable.
         const results = [];
-        const CONCURRENCY = 4;
-        for (let i = 0; i < recentStmts.length; i += CONCURRENCY) {
-          const batch = recentStmts.slice(i, i + CONCURRENCY);
-          const batchResults = await Promise.all(batch.map(async s => {
-            const { data: txs, error: txErr } = await supabase
-              .from("transactions").select("*")
-              .eq("statement_id", s.id)
-              .order("local_id")
-              .limit(TX_LIMIT);
-            if (txErr) console.error(`[load] Failed "${s.label}":`, txErr);
-            if (txs?.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap — some transactions may be missing.`);
-            const transactions = (txs || []).map(t => ({
-              ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
-              isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
-            }));
-            return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
+        for (let i = 0; i < recentStmts.length; i++) {
+          const s = recentStmts[i];
+          // Per-query timeout via Promise.race — prevents any single slow query hanging forever
+          let txs = [];
+          try {
+            const result = await Promise.race([
+              supabase.from("transactions").select("*")
+                .eq("statement_id", s.id)
+                .order("local_id")
+                .limit(TX_LIMIT),
+              new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout loading "${s.label}"`)), 20000))
+            ]);
+            if (result.error) console.error(`[load] Failed "${s.label}":`, result.error);
+            else txs = result.data || [];
+          } catch(e) {
+            console.error(`[load] ${e.message} — skipping`);
+          }
+          if (txs.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap.`);
+          const transactions = txs.map(t => ({
+            ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
+            isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
           }));
-          results.push(...batchResults);
+          results.push({ id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions });
+          // Render progressively — update state after each statement so UI isn't blank while loading
+          setStatements(sortStatements([...results]));
         }
-        setStatements(sortStatements(results));
       } catch (e) {
         console.error("Failed to load statements:", e);
         setLoadError(e.message || "Failed to load — check console for details.");
