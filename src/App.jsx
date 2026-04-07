@@ -611,9 +611,12 @@ function StatementChart({ transactions, dark }) {
 }
 
 /* ─── YEAR CHART ─── */
-function YearChart({ allTransactions, selectedMonth, onSelectMonth, dark }) {
+function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear, onFYChange, dark }) {
   const [tooltip, setTooltip] = useState(null);
-  const [fyStartYear, setFyStartYear] = useState(() => currentFYStartYear());
+  // Use shared FY year from parent if provided, otherwise manage internally
+  const [localFYYear, setLocalFYYear] = useState(() => sharedFYYear ?? currentFYStartYear());
+  const fyStartYear = sharedFYYear ?? localFYYear;
+  const setFyStartYear = (y) => { setLocalFYYear(y); onFYChange?.(y); };
 
   const fyYears = useMemo(() => getAllFYStartYears(allTransactions), [allTransactions]);
   const fyMonths = useMemo(() => getFYMonths(fyStartYear), [fyStartYear]);
@@ -1197,10 +1200,12 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const [pickerTx, setPickerTx]         = useState(null);
   const [editTx, setEditTx]             = useState(null);
   const [dbLoading, setDbLoading]       = useState(true);
+  const [loadError, setLoadError]       = useState("");
 
   // Navigation mode
   const [navMode, setNavMode]           = useState("calendar"); // "calendar" | "statement"
   const [selectedMonth, setSelectedMonth] = useState(null);    // { month, year, label }
+  const [sharedFYYear, setSharedFYYear]   = useState(() => currentFYStartYear()); // shared across both chart views
   const [customRange, setCustomRange]   = useState(null);      // { from, to } ISO strings
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [renamingStmt, setRenamingStmt] = useState(null); // { idx, value }
@@ -1219,9 +1224,11 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     const load = async () => {
       setDbLoading(true);
       try {
-        const { data: stmts, error: stmtsErr } = await supabase
-          .from("statements").select("*")
-          .eq("user_id", userId).eq("workspace", workspace).order("created_at");
+        const { data: stmts, error: stmtsErr } = await Promise.race([
+          supabase.from("statements").select("*")
+            .eq("user_id", userId).eq("workspace", workspace).order("created_at"),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("statements query timed out after 8s — check Supabase RLS policies")), 8000))
+        ]);
         if (stmtsErr) throw stmtsErr;
         if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
 
@@ -1244,6 +1251,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         setStatements(sortStatements(results));
       } catch (e) {
         console.error("Failed to load statements:", e);
+        setLoadError(e.message || "Failed to load — check console for details.");
         setStatements([]);
       } finally {
         setDbLoading(false);
@@ -1301,7 +1309,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       if (stmtErr) throw new Error(stmtErr.message);
       if (!newStmt) throw new Error("Statement insert returned no data.");
       const txRows = parsed.map(t => ({
-        statement_id: newStmt.id, local_id: t.id,
+        statement_id: newStmt.id, user_id: userId, local_id: t.id,
         date: t.date instanceof Date ? t.date.toISOString() : new Date(t.date).toISOString(),
         date_str: t.dateStr, description: t.description, amount: t.amount,
         is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
@@ -1379,6 +1387,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     // Build rows with explicit null-safety on every field
     const txRows = sanitised.map(t => ({
       statement_id: newStmt.id,
+      user_id: userId,
       local_id: t.id ?? 0,
       date: t.date.toISOString(),
       date_str: t.dateStr ?? "",
@@ -1514,6 +1523,14 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     </div>
   );
 
+  if (loadError) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 80, gap: 16 }}>
+      <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "var(--red)", fontWeight: 600 }}>Failed to load</div>
+      <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)", maxWidth: 400, textAlign: "center" }}>{loadError}</div>
+      <button onClick={() => { setLoadError(""); setDbLoading(true); }} style={{ padding: "8px 20px", borderRadius: 100, background: "var(--charcoal)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Retry</button>
+    </div>
+  );
+
   return (
     <div style={{ position: "relative" }}>
 
@@ -1535,6 +1552,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           allTransactions={allTransactions}
           selectedMonth={selectedMonth}
           onSelectMonth={m => { setSelectedMonth(m); setActiveCategory(null); setSearch(""); }}
+          sharedFYYear={sharedFYYear}
+          onFYChange={setSharedFYYear}
           dark={dark}
         />
       )}
@@ -1544,7 +1563,11 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <YearChart
           allTransactions={allTransactions}
           selectedMonth={null}
-          onSelectMonth={m => { setNavMode("calendar"); setSelectedMonth(m); setActiveCategory(null); setSearch(""); }}
+          onSelectMonth={m => {
+            if (m) { setNavMode("calendar"); setSelectedMonth(m); setActiveCategory(null); setSearch(""); }
+          }}
+          sharedFYYear={sharedFYYear}
+          onFYChange={setSharedFYYear}
           dark={dark}
         />
       )}
