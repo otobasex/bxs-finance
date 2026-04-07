@@ -1385,19 +1385,21 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     if (stmtErr) throw new Error(stmtErr.message);
     if (!newStmt) throw new Error("Statement insert returned no data.");
 
+    // Build rows with explicit null-safety on every field
     const txRows = sanitised.map(t => ({
-      statement_id: newStmt.id, local_id: t.id,
+      statement_id: newStmt.id,
+      local_id: t.id ?? 0,
       date: t.date.toISOString(),
-      date_str: t.dateStr, description: t.description, amount: t.amount,
-      is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
+      date_str: t.dateStr ?? "",
+      description: String(t.description ?? ""),
+      amount: Number(t.amount) || 0,
+      is_credit: !!t.isCredit,
+      category: t.category ?? "Other",
+      ai_categorised: false,
+      manual_category: null
     }));
 
-    // Send chunks in parallel — avoids sequential blocking and bypasses PostgREST response buffering.
-    // Use { count: "none" } to skip row-count response which causes hangs on large inserts.
-    const CHUNK = 25;
-    const chunks = [];
-    for (let i = 0; i < txRows.length; i += CHUNK) chunks.push(txRows.slice(i, i + CHUNK));
-
+    console.log(`[import] ${txRows.length} rows built, starting sequential insert`);
     onProgress?.(`Saving ${txRows.length} transactions…`);
 
     if (signal?.aborted) {
@@ -1405,22 +1407,27 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       throw new Error("Import cancelled.");
     }
 
-    // Run all chunks in parallel with individual 20s timeouts
-    const results = await Promise.allSettled(
-      chunks.map(chunk =>
-        Promise.race([
-          supabase.from("transactions").insert(chunk, { count: "none" }),
-          new Promise((_, rej) => setTimeout(() => rej(new Error("Chunk timed out")), 20000))
-        ])
-      )
-    );
+    // Sequential small chunks — parallel overwhelms Supabase free tier connection pool.
+    // No { count } option — default is fine and avoids API version mismatches.
+    const CHUNK = 30;
+    for (let i = 0; i < txRows.length; i += CHUNK) {
+      if (signal?.aborted) {
+        await supabase.from("statements").delete().eq("id", newStmt.id);
+        throw new Error("Import cancelled.");
+      }
+      const chunk = txRows.slice(i, i + CHUNK);
+      const done = Math.min(i + CHUNK, txRows.length);
+      onProgress?.(`Saving ${done} / ${txRows.length}…`);
+      console.log(`[import] inserting rows ${i}–${done}`);
 
-    const failures = results.filter(r => r.status === "rejected" || r.value?.error);
-    if (failures.length > 0) {
-      // Clean up and report
-      await supabase.from("statements").delete().eq("id", newStmt.id);
-      const msg = failures[0].reason?.message || failures[0].value?.error?.message || "Unknown error";
-      throw new Error(`Failed to save transactions: ${msg}`);
+      const { error } = await Promise.race([
+        supabase.from("transactions").insert(chunk),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`Timed out on rows ${i}–${done}`)), 20000))
+      ]);
+      if (error) {
+        await supabase.from("statements").delete().eq("id", newStmt.id);
+        throw new Error(`Supabase error on rows ${i}–${done}: ${error.message}`);
+      }
     }
 
     onProgress?.("Done!");
