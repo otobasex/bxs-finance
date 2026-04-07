@@ -1226,9 +1226,13 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
 
         const stmtIds = stmts.map(s => s.id);
+        // Scope to current FY only — prevents loading all 7 years on startup
+        const fyStart = new Date(currentFYStartYear(), 2, 1); // Mar 1 of current FY start year
         const { data: allTxRows, error: txErr } = await supabase
           .from("transactions").select("*")
-          .in("statement_id", stmtIds).order("local_id");
+          .in("statement_id", stmtIds)
+          .gte("date", fyStart.toISOString())
+          .order("local_id");
         if (txErr) throw txErr;
 
         // Group transactions by statement_id client-side
@@ -1324,31 +1328,42 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     }
   };
 
-  // Chunked insert — smaller chunks + per-chunk timeout to avoid silent hangs
-  const insertTransactions = async (txRows, signal) => {
-    const CHUNK = 50; // smaller chunks = faster per-request, less chance of timeout
-    const TIMEOUT_MS = 15000;
-    for (let i = 0; i < txRows.length; i += CHUNK) {
-      if (signal?.aborted) throw new Error("Import cancelled.");
-      const chunk = txRows.slice(i, i + CHUNK);
-      const timeoutPromise = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error(`Insert timed out on chunk ${Math.floor(i/CHUNK)+1} — check your Supabase connection and try again.`)), TIMEOUT_MS)
-      );
-      const insertPromise = supabase.from("transactions").insert(chunk).then(({ error }) => {
-        if (error) throw new Error(`Supabase error: ${error.message}`);
-      });
-      await Promise.race([insertPromise, timeoutPromise]);
+  // Chunked parallel insert — count:"none" skips PostgREST row-count response that causes hangs
+  const insertTransactions = async (txRows) => {
+    const CHUNK = 25;
+    const chunks = [];
+    for (let i = 0; i < txRows.length; i += CHUNK) chunks.push(txRows.slice(i, i + CHUNK));
+    const results = await Promise.allSettled(
+      chunks.map(chunk =>
+        Promise.race([
+          supabase.from("transactions").insert(chunk, { count: "none" }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("Chunk timed out")), 20000))
+        ])
+      )
+    );
+    const failure = results.find(r => r.status === "rejected" || r.value?.error);
+    if (failure) {
+      const msg = failure.reason?.message || failure.value?.error?.message || "Unknown error";
+      throw new Error(`Failed to save transactions: ${msg}`);
     }
   };
 
   // Direct import path for PDF/spreadsheet-parsed transactions (already structured)
   const handleImportDirect = async (parsed, signal, onProgress) => {
     if (!parsed.length) throw new Error("No transactions found.");
+
+    onProgress?.("Creating statement…");
     const label = detectPeriodLabel(parsed);
-    const { data: newStmt, error: stmtErr } = await supabase
-      .from("statements").insert({ user_id: userId, workspace, label }).select().single();
+    const stmtTimeout = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error("Statement insert timed out — check Supabase connection.")), 10000)
+    );
+    const { data: newStmt, error: stmtErr } = await Promise.race([
+      supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single(),
+      stmtTimeout
+    ]);
     if (stmtErr) throw new Error(stmtErr.message);
     if (!newStmt) throw new Error("Statement insert returned no data.");
+
     const txRows = parsed.map(t => ({
       statement_id: newStmt.id, local_id: t.id,
       date: t.date instanceof Date ? t.date.toISOString() : new Date(t.date).toISOString(),
@@ -1356,24 +1371,38 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
     }));
 
-    // Pass signal + progress reporting into chunked insert
-    const CHUNK = 50;
-    for (let i = 0; i < txRows.length; i += CHUNK) {
-      if (signal?.aborted) {
-        // Clean up the orphaned statement row then bail
-        await supabase.from("statements").delete().eq("id", newStmt.id);
-        throw new Error("Import cancelled.");
-      }
-      onProgress?.(`Saving ${Math.min(i + CHUNK, txRows.length)} / ${txRows.length}…`);
-      const timeoutPromise = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error("Supabase timed out — check connection and retry.")), 15000)
-      );
-      const insertPromise = supabase.from("transactions").insert(txRows.slice(i, i + CHUNK)).then(({ error }) => {
-        if (error) throw new Error(`Supabase error: ${error.message}`);
-      });
-      await Promise.race([insertPromise, timeoutPromise]);
+    // Send chunks in parallel — avoids sequential blocking and bypasses PostgREST response buffering.
+    // Use { count: "none" } to skip row-count response which causes hangs on large inserts.
+    const CHUNK = 25;
+    const chunks = [];
+    for (let i = 0; i < txRows.length; i += CHUNK) chunks.push(txRows.slice(i, i + CHUNK));
+
+    onProgress?.(`Saving ${txRows.length} transactions…`);
+
+    if (signal?.aborted) {
+      await supabase.from("statements").delete().eq("id", newStmt.id);
+      throw new Error("Import cancelled.");
     }
 
+    // Run all chunks in parallel with individual 20s timeouts
+    const results = await Promise.allSettled(
+      chunks.map(chunk =>
+        Promise.race([
+          supabase.from("transactions").insert(chunk, { count: "none" }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("Chunk timed out")), 20000))
+        ])
+      )
+    );
+
+    const failures = results.filter(r => r.status === "rejected" || r.value?.error);
+    if (failures.length > 0) {
+      // Clean up and report
+      await supabase.from("statements").delete().eq("id", newStmt.id);
+      const msg = failures[0].reason?.message || failures[0].value?.error?.message || "Unknown error";
+      throw new Error(`Failed to save transactions: ${msg}`);
+    }
+
+    onProgress?.("Done!");
     const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
     setStatements(prev => {
       const updated = sortStatements([...prev, newEntry]);
