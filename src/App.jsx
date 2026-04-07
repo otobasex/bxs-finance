@@ -1226,12 +1226,13 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
 
         const stmtIds = stmts.map(s => s.id);
-        // Scope to current FY only — prevents loading all 7 years on startup
-        const fyStart = new Date(currentFYStartYear(), 2, 1); // Mar 1 of current FY start year
+        // Load 2 FYs worth of transactions (current + previous) — enough for all current data,
+        // prevents pulling 7 years at once. Full pagination refactor comes later.
+        const twoFYsAgo = new Date(currentFYStartYear() - 1, 2, 1); // Mar 1, two years back
         const { data: allTxRows, error: txErr } = await supabase
           .from("transactions").select("*")
           .in("statement_id", stmtIds)
-          .gte("date", fyStart.toISOString())
+          .gte("date", twoFYsAgo.toISOString())
           .order("local_id");
         if (txErr) throw txErr;
 
