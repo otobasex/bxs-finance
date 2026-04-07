@@ -127,31 +127,27 @@ async function parsePDFWithAI(file, catNames, onStatus) {
   });
 
   onStatus("Sending to Claude — extracting transactions…");
-  const prompt = `You are parsing a South African FNB bank statement PDF. Extract every transaction and return ONLY a JSON array — no markdown, no explanation, nothing else.
+  // Compact format prompt minimises output tokens; single-line objects fit more in context
+  const prompt = `Parse this FNB bank statement. Output ONLY a raw JSON array — no markdown fences, no commentary, no text before or after the array.
 
-Each object must have exactly these fields:
-- "date": "DD Mon YYYY" format, e.g. "09 Feb 2026"
-- "description": full transaction description string
-- "debit": number (money out) or null
-- "credit": number (money in) or null
+Use compact single-line objects. Format: [{"date":"09 Feb 2026","description":"...","debit":null,"credit":10000},...]
 
 Rules:
-- Amounts with "Cr" suffix are credits (money in)
-- Amounts without "Cr" are debits (money out)  
-- Opening/Closing Balance lines are NOT transactions — skip them
-- Bank charge accrual column values are NOT transaction amounts — ignore them
-- Include bank fee rows (#Monthly Account Fee, #Service Fees etc) as debits
-- Include reversal/refund rows as credits
-- Every row in the Transactions table must appear exactly once
-
-Return only the JSON array.`;
+- date: "DD Mon YYYY" exactly
+- debit: number if money went OUT, else null
+- credit: number if money came IN (Cr suffix), else null
+- Skip Opening Balance, Closing Balance, Turnover summary rows
+- Skip the "Accrued Bank Charges" column values — they are NOT transaction amounts
+- Include all fee rows (#Monthly Account Fee, #Service Fees) as debits
+- Include reversals/refunds as credits
+- Output every transaction row exactly once`;
 
   const response = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 4000,
+      max_tokens: 8000,
       messages: [{
         role: "user",
         content: [
@@ -165,8 +161,32 @@ Return only the JSON array.`;
   if (!response.ok) throw new Error(`API error: ${response.status}`);
   const data = await response.json();
   const raw = data.content?.map(c => c.text || "").join("") || "";
-  const cleaned = raw.replace(/```json|```/g, "").trim();
-  const parsed = JSON.parse(cleaned);
+
+  // Extract the JSON array robustly — find first [ and last ]
+  // This handles any preamble text and truncation recovery
+  const arrayStart = raw.indexOf("[");
+  const arrayEnd   = raw.lastIndexOf("]");
+  if (arrayStart === -1) throw new Error("No transaction data returned — try again.");
+
+  let jsonStr = arrayStart !== -1 && arrayEnd > arrayStart
+    ? raw.slice(arrayStart, arrayEnd + 1)
+    : raw.slice(arrayStart);
+
+  // If response was truncated (no closing ]), patch it closed so we keep partial results
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    // Truncated: trim to last complete object and close the array
+    const lastComma = jsonStr.lastIndexOf("},");
+    if (lastComma === -1) throw new Error("Could not parse response — PDF may be too large. Try importing one month at a time.");
+    jsonStr = jsonStr.slice(0, lastComma + 1) + "]";
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      throw new Error("Could not parse response — PDF may be too large. Try importing one month at a time.");
+    }
+  }
 
   onStatus("Building transactions…");
   const monthMap = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
@@ -196,22 +216,67 @@ Return only the JSON array.`;
       manualCategory: null,
     });
   }
+  if (!transactions.length) throw new Error("No valid transactions found in PDF.");
   return transactions;
 }
 
 /* ─── PARSE STATEMENT ─── */
-function parseStatement(text, catNames) {
-  const transactions = [];
+function parseStatement(text, catNames, statementYear) {
   const monthMap = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
   const normalized = text.replace(/\s+/g, " ").trim();
   const chunks = normalized.split(/(?=\b\d{2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b)/);
   const dateRe = /^(\d{2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(.+?)\s+([\d,]+\.\d{2})(Cr)?\s+([\d,]+\.\d{2})(Cr)?/;
+
+  // Pass 1: extract raw month indices and detect the statement's own FY.
+  // Problem: currentFYStartYear() returns the *current* FY (e.g. 2026 in Apr 2026).
+  // A Feb 2026 statement is in FY 2025/2026, not 2026/2027.
+  // Fix: scan the statement for the highest balance amount — FNB statements include
+  // a running balance column. We use the second number (balance) in each chunk to
+  // detect whether the largest balance value suggests a prior year. But simpler:
+  // just check if the statement has any Mar-Dec months — those anchor the fyStart year.
+  // If there are NO Mar-Dec months (Jan/Feb only), use currentFYStartYear()-1 as fyStart
+  // because a Jan/Feb-only statement in Apr 2026 must be from FY 2025/2026.
+  const rawMonths = [];
+  for (const chunk of chunks) {
+    const m = chunk.trim().match(dateRe);
+    if (m) rawMonths.push(monthMap[m[2]]);
+  }
+  const hasAnchorMonths = rawMonths.some(m => m >= 2); // Mar=2 through Dec=11
+  const hasJanFeb = rawMonths.some(m => m < 2);
+  const currentFY = currentFYStartYear();
+  const todayMonth = new Date().getMonth();
+  let fyStart;
+  if (statementYear) {
+    // Explicit year provided (e.g. user selected it) — derive fyStart directly.
+    // If statementYear has anchor months (Mar-Dec), fyStart = statementYear.
+    // If only Jan/Feb, fyStart = statementYear - 1.
+    fyStart = hasAnchorMonths ? statementYear : statementYear - 1;
+  } else if (!hasAnchorMonths) {
+    // Statement is purely Jan/Feb — belongs to the FY that ended most recently.
+    fyStart = todayMonth >= 2 ? currentFY - 1 : currentFY;
+  } else {
+    // Statement has Mar-Dec anchor months.
+    const maxAnchorMonth = Math.max(...rawMonths.filter(m => m >= 2));
+    const anchorOccurredThisFY = (todayMonth >= 2)
+      ? maxAnchorMonth <= todayMonth
+      : true;
+    fyStart = anchorOccurredThisFY ? currentFY : currentFY - 1;
+  }
+
+  // Pass 2: build transactions using the inferred fyStart.
+  // Key rule: within a statement, Jan/Feb months that appear ALONGSIDE anchor months (Mar+)
+  // belong to fyStart+1 ONLY if the anchor months are from mid-year onwards (Apr-Dec).
+  // If the anchor months are just Mar (month=2), this is a cross-boundary statement
+  // (e.g. Feb–Mar) where Feb precedes Mar chronologically — Feb belongs to fyStart+1
+  // (which is correct: Feb 2026 in fyStart=2025 → fyStart+1 = 2026 ✓).
+  // The standard rule "month>=2 → fyStart, month<2 → fyStart+1" is always correct.
+  const transactions = [];
   for (const chunk of chunks) {
     const m = chunk.trim().match(dateRe);
     if (!m) continue;
     const day = parseInt(m[1]), month = monthMap[m[2]], desc = m[3].trim();
     const amount = parseFloat(m[4].replace(/,/g, "")), isCredit = m[5] === "Cr";
-    const fyStart = currentFYStartYear();
+    // Mar–Dec belong to fyStart year; Jan–Feb belong to fyStart+1
     const year = month >= 2 ? fyStart : fyStart + 1;
     transactions.push({ id: transactions.length, date: new Date(year, month, day), dateStr: `${m[2]} ${day}`, description: desc, amount, isCredit, category: categoriseFallback(desc, isCredit, catNames), aiCategorised: false, manualCategory: null });
   }
@@ -719,6 +784,7 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
   const [pdfStatus, setPdfStatus] = useState("");  // live status string during PDF parse
   const [pdfPreview, setPdfPreview] = useState(null); // { transactions, count } after parse
   const [pdfError, setPdfError]   = useState("");
+  const [stmtYear, setStmtYear]   = useState(new Date().getFullYear());
 
   const resetPdf = () => { setPdfPreview(null); setPdfStatus(""); setPdfError(""); setFileName(""); };
 
@@ -853,6 +919,15 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
           <>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Or paste statement text</div>
             <textarea value={text} onChange={e => setText(e.target.value)} rows={5} placeholder="Paste your bank statement text here…" style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, lineHeight: 1.7, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--cream-border)", background: "var(--cream)", color: "var(--ink)", resize: "vertical", outline: "none" }} />
+            {text.trim() && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <label style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)", whiteSpace: "nowrap" }}>Statement year</label>
+                <select value={stmtYear} onChange={e => setStmtYear(parseInt(e.target.value))} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--cream-border)", background: "var(--cream)", fontFamily: "'Inter',sans-serif", fontSize: 12, color: "var(--ink)", outline: "none", cursor: "pointer" }}>
+                  {[0,1,2,3].map(i => { const y = new Date().getFullYear() - i; return <option key={y} value={y}>{y}</option>; })}
+                </select>
+                <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, color: "var(--ink-faint)" }}>Set this if months land in the wrong year</span>
+              </div>
+            )}
           </>
         )}
 
@@ -868,7 +943,7 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
             </button>
           ) : (
             <button
-              onClick={() => { if (canImportText) { onImport(text); setText(""); setFileName(""); } }}
+              onClick={() => { if (canImportText) { onImport(text, stmtYear); setText(""); setFileName(""); } }}
               disabled={!canImportText}
               style={{ flex: 2, padding: "11px", borderRadius: 100, background: canImportText ? "var(--grad)" : "var(--cream-border)", border: "none", color: canImportText ? "white" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: canImportText ? "pointer" : "not-allowed", transition: "all 0.15s" }}
             >
@@ -1077,8 +1152,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   }), [transactions, activeCategory, search]);
 
   /* Import */
-  const handleImport = async (text) => {
-    const parsed = parseStatement(text, catNames);
+  const handleImport = async (text, stmtYear) => {
+    const parsed = parseStatement(text, catNames, stmtYear);
     if (!parsed.length) { alert("No transactions found."); return; }
     const label = detectPeriodLabel(parsed);
     const { data: newStmt } = await supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single();
