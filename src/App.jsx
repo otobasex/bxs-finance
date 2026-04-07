@@ -128,26 +128,26 @@ async function parsePDFWithAI(file, catNames, onStatus) {
 
   onStatus("Sending to Claude — extracting transactions…");
   // Compact format prompt minimises output tokens; single-line objects fit more in context
-  const prompt = `Parse this FNB bank statement. Output ONLY a raw JSON array — no markdown fences, no commentary, no text before or after the array.
+  const prompt = `Parse this FNB bank statement. Output ONLY a raw JSON array. No markdown, no text outside the array.
 
-Use compact single-line objects. Format: [{"date":"09 Feb 2026","description":"...","debit":null,"credit":10000},...]
+Ultra-compact format — one object per line, shortest possible keys:
+[{"d":"07 Feb 2026","t":"POS Purchase Uber","o":65.00},{"d":"09 Feb 2026","t":"FNB App Transfer","i":1500.00},...]
+
+Key names: "d"=date, "t"=description, "o"=debit/money out (number), "i"=credit/money in (number). Omit the key entirely if null.
 
 Rules:
 - date: "DD Mon YYYY" exactly
-- debit: number if money went OUT, else null
-- credit: number if money came IN (Cr suffix), else null
-- Skip Opening Balance, Closing Balance, Turnover summary rows
-- Skip the "Accrued Bank Charges" column values — they are NOT transaction amounts
-- Include all fee rows (#Monthly Account Fee, #Service Fees) as debits
-- Include reversals/refunds as credits
-- Output every transaction row exactly once`;
+- Include ALL rows including fee rows (R8.00 declined fees, service fees, etc)
+- Skip only: Opening Balance, Closing Balance, Turnover summary lines
+- Skip Accrued Bank Charges column values — NOT transaction amounts
+- Every transaction row exactly once`;
 
   const response = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 8000,
+      max_tokens: 16000,
       messages: [{
         role: "user",
         content: [
@@ -192,16 +192,20 @@ Rules:
   const monthMap = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
   const transactions = [];
   for (const row of parsed) {
-    const parts = String(row.date || "").trim().split(" ");
+    // Support both old long keys (date/description/debit/credit) and new short keys (d/t/o/i)
+    const rawDate = row.d || row.date || "";
+    const parts = String(rawDate).trim().split(" ");
     if (parts.length < 3) continue;
     const day = parseInt(parts[0]);
     const monthIdx = monthMap[parts[1]];
     const year = parseInt(parts[2]);
     if (isNaN(day) || monthIdx === undefined || isNaN(year)) continue;
-    const isCredit = !!(row.credit && row.credit > 0);
-    const amount = isCredit ? parseFloat(row.credit) : parseFloat(row.debit);
+    const creditAmt = row.i ?? row.credit;
+    const debitAmt  = row.o ?? row.debit;
+    const isCredit = !!(creditAmt && creditAmt > 0);
+    const amount = isCredit ? parseFloat(creditAmt) : parseFloat(debitAmt);
     if (!amount || amount <= 0) continue;
-    const desc = String(row.description || "").trim();
+    const desc = String(row.t || row.description || "").trim();
     if (!desc) continue;
     const dateStr = `${parts[1]} ${day}`;
     transactions.push({
