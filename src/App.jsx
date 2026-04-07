@@ -591,17 +591,22 @@ function StatementChart({ transactions, dark }) {
                   {d.spend  > 0 && <div style={{ fontSize: 10, color: "#FF9F99" }}>↓ {fmt(d.spend, true)}</div>}
                 </div>
               )}
-              {/* Bar pair */}
-              <div style={{ width: "100%", display: "flex", gap: 0, alignItems: "flex-end", height: 76 }}>
-                <div style={{ flex: 1, margin: "0 0.5px 0 0", height: hasData ? `${incomeH}%` : 2, background: hasData && d.income > 0 ? "linear-gradient(to bottom, #8EEC7C, #C0EFDE)" : emptyBar, borderRadius: 100, transition: "height 0.3s ease", opacity: isWeekend && !hasData ? 0.4 : 1, minHeight: hasData ? undefined : 2 }} />
-                <div style={{ flex: 1, margin: "0 0 0 0.5px", height: hasData ? `${spendH}%`  : 2, background: hasData && d.spend  > 0 ? "linear-gradient(to bottom, #FF9F99, #FFCECD)" : emptyBar, borderRadius: 100, transition: "height 0.3s ease", opacity: isWeekend && !hasData ? 0.4 : 1, minHeight: hasData ? undefined : 2 }} />
-              </div>
-              {/* Date label — sparse */}
-              {showLabel && (
-                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 7, color: labelMute, letterSpacing: "0.04em", paddingTop: 4, whiteSpace: "nowrap", transform: totalDays > 20 ? "rotate(-35deg)" : "none", transformOrigin: "top center" }}>
-                  {lbl}
+              {/* Amount labels above bars — show on hover or for largest bars */}
+              {(tooltip === i || (hasData && (d.income > maxVal * 0.4 || d.spend > maxVal * 0.4))) && hasData && (
+                <div style={{ position: "absolute", bottom: "calc(100% - 2px)", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 10 }}>
+                  {d.income > 0 && <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 7, fontWeight: 700, color: dark ? "#8EEC7C" : "#16a34a", whiteSpace: "nowrap", background: dark ? "rgba(17,18,16,0.85)" : "rgba(255,255,255,0.9)", padding: "1px 3px", borderRadius: 3 }}>{fmt(d.income, true)}</div>}
+                  {d.spend  > 0 && <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 7, fontWeight: 700, color: dark ? "#FF9F99" : "#E31A51", whiteSpace: "nowrap", background: dark ? "rgba(17,18,16,0.85)" : "rgba(255,255,255,0.9)", padding: "1px 3px", borderRadius: 3 }}>{fmt(d.spend, true)}</div>}
                 </div>
               )}
+              {/* Bar pair — thin pills matching YearChart style */}
+              <div style={{ width: "100%", display: "flex", gap: 0, alignItems: "flex-end", height: 76 }}>
+                <div style={{ flex: 1, maxWidth: 7, margin: "0 1px 0 auto", height: hasData ? `${incomeH}%` : 2, background: hasData && d.income > 0 ? "linear-gradient(to bottom, #8EEC7C, #C0EFDE)" : emptyBar, borderRadius: 100, transition: "height 0.3s ease", opacity: isWeekend && !hasData ? 0.35 : 1, minHeight: 2 }} />
+                <div style={{ flex: 1, maxWidth: 7, margin: "0 auto 0 1px", height: hasData ? `${spendH}%`  : 2, background: hasData && d.spend  > 0 ? "linear-gradient(to bottom, #FF9F99, #FFCECD)" : emptyBar, borderRadius: 100, transition: "height 0.3s ease", opacity: isWeekend && !hasData ? 0.35 : 1, minHeight: 2 }} />
+              </div>
+              {/* Date label — show day number always, month on sparse intervals */}
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 7, color: showLabel ? labelHi : "transparent", letterSpacing: "0.02em", paddingTop: 5, whiteSpace: "nowrap", userSelect: "none" }}>
+                {d.date.getDate()}
+              </div>
             </div>
           );
         })}
@@ -743,6 +748,13 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
                 </div>
               )}
 
+              {/* Amount labels — show on hover or for tallest bars */}
+              {(tooltip === i || (!isEmpty && !dimmed && (m.income > maxVal * 0.35 || m.spend > maxVal * 0.35))) && !isEmpty && (
+                <div style={{ position: "absolute", bottom: "calc(100% - 4px)", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 10 }}>
+                  {m.income > 0 && <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 7, fontWeight: 700, color: incomeCol, whiteSpace: "nowrap", background: dark ? "rgba(17,17,17,0.9)" : "rgba(255,255,255,0.9)", padding: "1px 3px", borderRadius: 3 }}>{fmt(m.income, true)}</div>}
+                  {m.spend  > 0 && <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 7, fontWeight: 700, color: spendCol,  whiteSpace: "nowrap", background: dark ? "rgba(17,17,17,0.9)" : "rgba(255,255,255,0.9)", padding: "1px 3px", borderRadius: 3 }}>{fmt(m.spend,  true)}</div>}
+                </div>
+              )}
               {/* Bar pair — thin pill bars with gradient */}
               <div style={{ width: "100%", display: "flex", gap: 0, alignItems: "flex-end", height: 96, paddingBottom: 0 }}>
                 {/* Income bar */}
