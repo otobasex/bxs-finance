@@ -608,7 +608,7 @@ function ImportModal({ open, onClose, onImport }) {
       const ext = file.name.split(".").pop().toLowerCase();
       if (ext === "csv" || ext === "xlsx" || ext === "xls") {
         const result = await parseSpreadsheet(file);
-        setText(Array.isArray(result) ? result.join("\n") : result);
+        setText(result);
       } else {
         const t = await file.text();
         setText(t);
@@ -768,6 +768,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const [selectedMonth, setSelectedMonth] = useState(null);    // { month, year, label }
   const [customRange, setCustomRange]   = useState(null);      // { from, to } ISO strings
   const [showCustomRange, setShowCustomRange] = useState(false);
+  const [renamingStmt, setRenamingStmt] = useState(null); // { idx, value }
 
   const catNames = categories.map(c => c.name);
 
@@ -987,7 +988,30 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                 {isActive && statements.length > 1 && (
                   <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
                 )}
-                <button onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }} style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{s.label}</button>
+                {renamingStmt?.idx === i ? (
+                  <input
+                    autoFocus
+                    value={renamingStmt.value}
+                    onChange={e => setRenamingStmt(r => ({ ...r, value: e.target.value }))}
+                    onBlur={async () => {
+                      const newLabel = renamingStmt.value.trim();
+                      if (newLabel && newLabel !== s.label) {
+                        await supabase.from("statements").update({ label: newLabel }).eq("id", s.id);
+                        setStatements(prev => prev.map((st, si) => si === i ? { ...st, label: newLabel } : st));
+                      }
+                      setRenamingStmt(null);
+                    }}
+                    onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setRenamingStmt(null); }}
+                    style={{ padding: "3px 8px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", outline: "none", width: Math.max(80, renamingStmt.value.length * 7) + "px", letterSpacing: "0.05em" }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
+                    onDoubleClick={() => isActive && setRenamingStmt({ idx: i, value: s.label })}
+                    title={isActive ? "Double-click to rename" : ""}
+                    style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}
+                  >{s.label}</button>
+                )}
                 {isActive && statements.length > 1 && (
                   <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
                 )}
@@ -1213,7 +1237,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 }
 
 /* ─── FINANCIAL REPORT GENERATOR ─── */
-const FY_YEARS_LIST = (() => {
+function buildFYYearsList() {
   const years = [];
   const now = new Date();
   const m = now.getMonth();
@@ -1224,11 +1248,12 @@ const FY_YEARS_LIST = (() => {
     years.push({ id: `${s}-${s+1}`, label: `FY ${s}/${s+1}`, startDate: new Date(s, 2, 1), endDate: new Date(s+1, 2, 0) });
   }
   return years;
-})();
+}
 
 function FinancialReportGenerator({ session, workspace }) {
   const entityName = workspace === "professional" ? "Base X Studio" : "Otoabasi Bassey";
-  const [fyYear, setFyYear] = useState(FY_YEARS_LIST[0]);
+  const [fyYearsList] = useState(() => buildFYYearsList());
+  const [fyYear, setFyYear] = useState(() => buildFYYearsList()[0]);
   const [allTxs, setAllTxs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
@@ -1295,8 +1320,8 @@ function FinancialReportGenerator({ session, workspace }) {
         </div>
         <div>
           <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"var(--ink-faint)", marginBottom:8 }}>Financial Year</div>
-          <select value={fyYear.id} onChange={e => { setFyYear(FY_YEARS_LIST.find(f=>f.id===e.target.value)); setGenerated(false); }} style={{ padding:"9px 14px", borderRadius:10, border:"1px solid var(--cream-border)", background:"var(--cream)", fontFamily:"'Inter',sans-serif", fontSize:13, color:"var(--ink)", outline:"none", cursor:"pointer" }}>
-            {FY_YEARS_LIST.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+          <select value={fyYear.id} onChange={e => { setFyYear(fyYearsList.find(f=>f.id===e.target.value)); setGenerated(false); }} style={{ padding:"9px 14px", borderRadius:10, border:"1px solid var(--cream-border)", background:"var(--cream)", fontFamily:"'Inter',sans-serif", fontSize:13, color:"var(--ink)", outline:"none", cursor:"pointer" }}>
+            {fyYearsList.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
         </div>
         <div>
@@ -1441,9 +1466,14 @@ export default function App() {
     const newIds = newCats.map(c => c.id);
     const removed = categories.filter(c => !newIds.includes(c.id));
     for (const c of removed) await supabase.from("categories").delete().eq("id", c.id);
-    if (deletedName && reassignTo) {
-      await supabase.from("transactions").update({ category: reassignTo }).eq("category", deletedName);
-      await supabase.from("transactions").update({ manual_category: reassignTo }).eq("manual_category", deletedName);
+    if (deletedName && reassignTo && session?.user) {
+      // Scope reassign to this user's statement IDs only — avoids cross-user pollution if RLS is off
+      const { data: userStmts } = await supabase.from("statements").select("id").eq("user_id", session.user.id);
+      const ids = (userStmts || []).map(s => s.id);
+      if (ids.length) {
+        await supabase.from("transactions").update({ category: reassignTo }).eq("category", deletedName).in("statement_id", ids);
+        await supabase.from("transactions").update({ manual_category: reassignTo }).eq("manual_category", deletedName).in("statement_id", ids);
+      }
     }
     setCategories(newCats);
     setShowCatManager(false);
