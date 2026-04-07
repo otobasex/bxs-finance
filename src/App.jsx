@@ -785,6 +785,7 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
   const [pdfPreview, setPdfPreview] = useState(null); // { transactions, count } after parse
   const [pdfError, setPdfError]   = useState("");
   const [stmtYear, setStmtYear]   = useState(new Date().getFullYear());
+  const [importing, setImporting] = useState(false);
 
   const resetPdf = () => { setPdfPreview(null); setPdfStatus(""); setPdfError(""); setFileName(""); };
 
@@ -936,10 +937,11 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
           <button onClick={() => { onClose(); resetPdf(); }} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-mid)", cursor: "pointer" }}>Cancel</button>
           {canImportPdf ? (
             <button
-              onClick={() => { onImportDirect(pdfPreview.transactions); resetPdf(); }}
-              style={{ flex: 2, padding: "11px", borderRadius: 100, background: "var(--grad)", border: "none", color: "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+              disabled={importing}
+              onClick={async () => { setImporting(true); await onImportDirect(pdfPreview.transactions); setImporting(false); resetPdf(); }}
+              style={{ flex: 2, padding: "11px", borderRadius: 100, background: importing ? "var(--cream-border)" : "var(--grad)", border: "none", color: importing ? "var(--ink-faint)" : "white", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, cursor: importing ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              Import {pdfPreview.transactions.length} Transactions
+              {importing ? <><div className="ai-spinner-sm" />Saving…</> : `Import ${pdfPreview.transactions.length} Transactions`}
             </button>
           ) : (
             <button
@@ -1162,35 +1164,68 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const handleImport = async (text, stmtYear) => {
     const parsed = parseStatement(text, catNames, stmtYear);
     if (!parsed.length) { alert("No transactions found."); return; }
-    const label = detectPeriodLabel(parsed);
-    const { data: newStmt } = await supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single();
-    if (!newStmt) { alert("Failed to save statement."); return; }
-    const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
-    await supabase.from("transactions").insert(txRows);
-    const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
-    setStatements(prev => {
-      const updated = sortStatements([...prev, newEntry]);
-      setActiveStmt(updated.length - 1);
-      return updated;
-    });
-    setShowImport(false); setAiStatus(null);
+    try {
+      const label = detectPeriodLabel(parsed);
+      const { data: newStmt, error: stmtErr } = await supabase
+        .from("statements").insert({ user_id: userId, workspace, label }).select().single();
+      if (stmtErr) throw new Error(stmtErr.message);
+      if (!newStmt) throw new Error("Statement insert returned no data.");
+      const txRows = parsed.map(t => ({
+        statement_id: newStmt.id, local_id: t.id,
+        date: t.date instanceof Date ? t.date.toISOString() : new Date(t.date).toISOString(),
+        date_str: t.dateStr, description: t.description, amount: t.amount,
+        is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
+      }));
+      await insertTransactions(txRows);
+      const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
+      setStatements(prev => {
+        const updated = sortStatements([...prev, newEntry]);
+        setActiveStmt(updated.length - 1);
+        return updated;
+      });
+      setShowImport(false); setAiStatus(null);
+    } catch (e) {
+      console.error("Import failed:", e);
+      alert(`Import failed: ${e.message}`);
+    }
   };
 
-  // Direct import path for PDF-parsed transactions (already structured, skip text parsing)
+  // Chunked insert — Supabase has row limits per request; batch to avoid silent failures
+  const insertTransactions = async (txRows) => {
+    const CHUNK = 100;
+    for (let i = 0; i < txRows.length; i += CHUNK) {
+      const { error } = await supabase.from("transactions").insert(txRows.slice(i, i + CHUNK));
+      if (error) throw new Error(`Failed to insert transactions: ${error.message}`);
+    }
+  };
+
+  // Direct import path for PDF/spreadsheet-parsed transactions (already structured)
   const handleImportDirect = async (parsed) => {
     if (!parsed.length) { alert("No transactions found."); return; }
-    const label = detectPeriodLabel(parsed);
-    const { data: newStmt } = await supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single();
-    if (!newStmt) { alert("Failed to save statement."); return; }
-    const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
-    await supabase.from("transactions").insert(txRows);
-    const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
-    setStatements(prev => {
-      const updated = sortStatements([...prev, newEntry]);
-      setActiveStmt(updated.length - 1);
-      return updated;
-    });
-    setShowImport(false); setAiStatus(null);
+    try {
+      const label = detectPeriodLabel(parsed);
+      const { data: newStmt, error: stmtErr } = await supabase
+        .from("statements").insert({ user_id: userId, workspace, label }).select().single();
+      if (stmtErr) throw new Error(stmtErr.message);
+      if (!newStmt) throw new Error("Statement insert returned no data.");
+      const txRows = parsed.map(t => ({
+        statement_id: newStmt.id, local_id: t.id,
+        date: t.date instanceof Date ? t.date.toISOString() : new Date(t.date).toISOString(),
+        date_str: t.dateStr, description: t.description, amount: t.amount,
+        is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null
+      }));
+      await insertTransactions(txRows);
+      const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
+      setStatements(prev => {
+        const updated = sortStatements([...prev, newEntry]);
+        setActiveStmt(updated.length - 1);
+        return updated;
+      });
+      setShowImport(false); setAiStatus(null);
+    } catch (e) {
+      console.error("Import failed:", e);
+      alert(`Import failed: ${e.message}`);
+    }
   };
 
   const handleAICategorise = async () => {
