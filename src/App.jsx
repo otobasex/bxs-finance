@@ -1249,20 +1249,30 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         // Avoids the slow .in() with many UUIDs — each query is simple and fast.
         // Limit to 20 most recent statements to cap total data loaded.
         const recentStmts = stmts.slice(-20);
-        const TX_LIMIT = 2000; // raised from 500 — monthly statements can exceed 500 rows
-        const results = await Promise.all(recentStmts.map(async s => {
-          const { data: txs } = await supabase
-            .from("transactions").select("*")
-            .eq("statement_id", s.id)
-            .order("local_id")
-            .limit(TX_LIMIT);
-          if (txs?.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap — some transactions may be missing.`);
-          const transactions = (txs || []).map(t => ({
-            ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
-            isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
+        const TX_LIMIT = 2000;
+
+        // Load in batches of 4 — firing 20 parallel queries floods Supabase connections
+        // and causes hangs, especially on the personal workspace with more statements.
+        const results = [];
+        const CONCURRENCY = 4;
+        for (let i = 0; i < recentStmts.length; i += CONCURRENCY) {
+          const batch = recentStmts.slice(i, i + CONCURRENCY);
+          const batchResults = await Promise.all(batch.map(async s => {
+            const { data: txs, error: txErr } = await supabase
+              .from("transactions").select("*")
+              .eq("statement_id", s.id)
+              .order("local_id")
+              .limit(TX_LIMIT);
+            if (txErr) console.error(`[load] Failed "${s.label}":`, txErr);
+            if (txs?.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap — some transactions may be missing.`);
+            const transactions = (txs || []).map(t => ({
+              ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
+              isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
+            }));
+            return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
           }));
-          return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
-        }));
+          results.push(...batchResults);
+        }
         setStatements(sortStatements(results));
       } catch (e) {
         console.error("Failed to load statements:", e);
@@ -1385,8 +1395,10 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     const label = detectPeriodLabel(sanitised);
 
     // Duplicate guard — check if a statement with this label already exists
-    const { data: existing } = await supabase
-      .from("statements").select("id").eq("user_id", userId).eq("workspace", workspace).eq("label", label);
+    const { data: existing } = await Promise.race([
+      supabase.from("statements").select("id").eq("user_id", userId).eq("workspace", workspace).eq("label", label),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Duplicate check timed out — check your connection and try again.")), 8000))
+    ]);
     if (existing?.length) throw new Error(`A statement labelled "${label}" already exists. Delete it first or rename before importing.`);
 
     // Use native fetch + AbortController so timeouts actually cancel the HTTP request
@@ -1417,14 +1429,18 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     // Insert statement — abort on timeout OR if user clicks Stop
     const sa = new AbortController();
     const st = setTimeout(() => sa.abort(), 10000);
-    signal?.addEventListener("abort", () => sa.abort());
+    const onAbortSa = () => sa.abort();
+    signal?.addEventListener("abort", onAbortSa, { once: true });
     let newStmt;
     try {
       const rows = await sbFetch("statements?select=id,label",
         { user_id: userId, workspace, label },
         "return=representation", sa.signal);
       newStmt = Array.isArray(rows) ? rows[0] : rows;
-    } finally { clearTimeout(st); }
+    } finally {
+      clearTimeout(st);
+      signal?.removeEventListener("abort", onAbortSa);
+    }
     if (signal?.aborted) throw new Error("Import cancelled.");
     if (!newStmt?.id) throw new Error("Statement insert returned no data.");
 
