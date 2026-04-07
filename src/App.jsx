@@ -127,7 +127,8 @@ function parseStatement(text, catNames) {
     if (!m) continue;
     const day = parseInt(m[1]), month = monthMap[m[2]], desc = m[3].trim();
     const amount = parseFloat(m[4].replace(/,/g, "")), isCredit = m[5] === "Cr";
-    const year = month >= 11 ? 2025 : 2026;
+    const fyStart = currentFYStartYear();
+    const year = month >= 2 ? fyStart : fyStart + 1;
     transactions.push({ id: transactions.length, date: new Date(year, month, day), dateStr: `${m[2]} ${day}`, description: desc, amount, isCredit, category: categoriseFallback(desc, isCredit, catNames), aiCategorised: false, manualCategory: null });
   }
   return transactions;
@@ -770,19 +771,44 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
   const catNames = categories.map(c => c.name);
 
-  /* Load statements */
+  /* Load statements — 2 queries total instead of N+1 */
   useEffect(() => {
     const load = async () => {
       setDbLoading(true);
-      const { data: stmts } = await supabase.from("statements").select("*").eq("user_id", userId).eq("workspace", workspace).order("created_at");
-      if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
-      const results = await Promise.all(stmts.map(async s => {
-        const { data: txs } = await supabase.from("transactions").select("*").eq("statement_id", s.id).order("local_id");
-        const transactions = (txs || []).map(t => ({ ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str, isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category }));
-        return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
-      }));
-      setStatements(sortStatements(results));
-      setDbLoading(false);
+      try {
+        const { data: stmts, error: stmtsErr } = await supabase
+          .from("statements").select("*")
+          .eq("user_id", userId).eq("workspace", workspace).order("created_at");
+        if (stmtsErr) throw stmtsErr;
+        if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
+
+        const stmtIds = stmts.map(s => s.id);
+        const { data: allTxRows, error: txErr } = await supabase
+          .from("transactions").select("*")
+          .in("statement_id", stmtIds).order("local_id");
+        if (txErr) throw txErr;
+
+        // Group transactions by statement_id client-side
+        const txByStmt = {};
+        (allTxRows || []).forEach(t => {
+          if (!txByStmt[t.statement_id]) txByStmt[t.statement_id] = [];
+          txByStmt[t.statement_id].push({
+            ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
+            isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
+          });
+        });
+
+        const results = stmts.map(s => ({
+          id: s.id, label: s.label, sortOrder: s.sort_order ?? null,
+          transactions: txByStmt[s.id] || []
+        }));
+        setStatements(sortStatements(results));
+      } catch (e) {
+        console.error("Failed to load statements:", e);
+        setStatements([]);
+      } finally {
+        setDbLoading(false);
+      }
     };
     load();
   }, [userId, workspace]);
@@ -835,23 +861,32 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     const txRows = parsed.map(t => ({ statement_id: newStmt.id, local_id: t.id, date: t.date.toISOString(), date_str: t.dateStr, description: t.description, amount: t.amount, is_credit: t.isCredit, category: t.category, ai_categorised: false, manual_category: null }));
     await supabase.from("transactions").insert(txRows);
     const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
-    setStatements(prev => sortStatements([...prev, newEntry]));
-    setActiveStmt(statements.length);
+    setStatements(prev => {
+      const updated = sortStatements([...prev, newEntry]);
+      setActiveStmt(updated.length - 1);
+      return updated;
+    });
     setShowImport(false); setAiStatus(null);
   };
 
   const handleAICategorise = async () => {
     setAiLoading(true); setAiStatus(null);
     try {
-      const stmtTransactions = navMode === "statement" ? transactions : (statements[activeStmt] || statements[0])?.transactions || [];
-      const updated = await categoriseWithAI(stmtTransactions, catNames);
-      const stmtId = (statements[activeStmt] || statements[0])?.id;
-      if (stmtId) {
+      // In statement mode: categorise the active statement only
+      // In calendar mode: categorise all statements (all visible transactions may span many)
+      const targetStmts = navMode === "statement"
+        ? [statements[activeStmt] || statements[0]].filter(Boolean)
+        : statements;
+
+      for (const stmt of targetStmts) {
+        const updated = await categoriseWithAI(stmt.transactions, catNames);
         for (const t of updated) {
-          await supabase.from("transactions").update({ category: t.category, ai_categorised: t.aiCategorised }).eq("statement_id", stmtId).eq("local_id", t.id);
+          await supabase.from("transactions")
+            .update({ category: t.category, ai_categorised: t.aiCategorised })
+            .eq("statement_id", stmt.id).eq("local_id", t.id);
         }
+        setStatements(prev => prev.map(s => s.id === stmt.id ? { ...s, transactions: updated } : s));
       }
-      setStatements(prev => prev.map((s, i) => i === activeStmt ? { ...s, transactions: updated } : s));
       setAiStatus("done");
     } catch { setAiStatus("error"); } finally { setAiLoading(false); }
   };
@@ -1268,7 +1303,7 @@ function FinancialReportGenerator({ session, workspace }) {
           <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"var(--ink-faint)", marginBottom:8 }}>Transactions in period</div>
           <div style={{ fontSize:22, fontWeight:900, color: inFY.length > 0 ? "var(--red)" : "var(--ink-faint)" }}>{loading ? "—" : inFY.length}</div>
         </div>
-        <button onClick={handleGenerate} disabled={loading||inFY.length===0} style={{ padding:"11px 24px", borderRadius:100, background: inFY.length>0?"linear-gradient(135deg,#E31A51,#FF5C7A)":"var(--cream-border)", border:"none", color:"white", fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:600, cursor: inFY.length>0?"pointer":"not-allowed", boxShadow: inFY.length>0?"0 2px 12px rgba(225,53,64,0.3)":"none", whiteSpace:"nowrap" }}>
+        <button onClick={handleGenerate} disabled={loading||inFY.length===0||!session?.user} style={{ padding:"11px 24px", borderRadius:100, background: (!loading&&inFY.length>0)?"linear-gradient(135deg,#E31A51,#FF5C7A)":"var(--cream-border)", border:"none", color: (!loading&&inFY.length>0)?"white":"var(--ink-faint)", fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:600, cursor: (!loading&&inFY.length>0)?"pointer":"not-allowed", boxShadow: (!loading&&inFY.length>0)?"0 2px 12px rgba(225,53,64,0.3)":"none", whiteSpace:"nowrap" }}>
           {loading ? "Loading…" : "Generate Report"}
         </button>
       </div>
@@ -1324,12 +1359,20 @@ function FinancialReportGenerator({ session, workspace }) {
 export default function App() {
   const [session, setSession] = useState(undefined);
   const [accessDenied, setAccessDenied] = useState(false);
-  const [dark, setDark] = useState(false);
-  const [workspace, setWorkspace] = useState("professional");
+  const [dark, setDark] = useState(() => {
+    try { return localStorage.getItem("bxs-dark") === "1"; } catch { return false; }
+  });
+  const [workspace, setWorkspace] = useState(() => {
+    try { return localStorage.getItem("bxs-ws") || "professional"; } catch { return "professional"; }
+  });
   const [showCatManager, setShowCatManager] = useState(false);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [view, setView] = useState("dashboard");
   const catMap = useMemo(() => buildCatMap(categories), [categories]);
+
+  // Persist preferences
+  useEffect(() => { try { localStorage.setItem("bxs-dark", dark ? "1" : "0"); } catch {} }, [dark]);
+  const switchWorkspace = (ws) => { setWorkspace(ws); try { localStorage.setItem("bxs-ws", ws); } catch {} };
 
   // Safety net — if still loading after 8s, show login screen instead of spinning forever
   useEffect(() => {
@@ -1516,8 +1559,8 @@ export default function App() {
                 <button className={`nav-btn${view === "reports" ? " active" : ""}`} onClick={() => setView("reports")}>Reports</button>
               </div>
               <div className="ws-toggle">
-                <button className={`ws-toggle-opt${isPro ? " active" : ""}`} onClick={() => setWorkspace("professional")} title="Professional">💼</button>
-                <button className={`ws-toggle-opt${!isPro ? " active" : ""}`} onClick={() => setWorkspace("personal")} title="Personal">👤</button>
+                <button className={`ws-toggle-opt${isPro ? " active" : ""}`} onClick={() => switchWorkspace("professional")} title="Professional">💼</button>
+                <button className={`ws-toggle-opt${!isPro ? " active" : ""}`} onClick={() => switchWorkspace("personal")} title="Personal">👤</button>
               </div>
               <div className="ws-toggle">
                 <button className={`ws-toggle-opt${!dark ? " active" : ""}`} onClick={() => setDark(false)} title="Light mode">☀️</button>
