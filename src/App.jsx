@@ -1054,10 +1054,11 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
           <button onClick={() => {
             if (importing && importAbortRef.current) {
               importAbortRef.current.abort();
+              // State cleanup happens in the finally block of the import button handler
             } else {
               onClose(); resetPdf();
             }
-          }} style={{ flex: 1, padding: "11px", borderRadius: 100, border: "1px solid var(--cream-border)", background: "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: importing ? "var(--red)" : "var(--ink-mid)", fontWeight: importing ? 700 : 400, cursor: "pointer" }}>
+          }} style={{ flex: 1, padding: "11px", borderRadius: 100, border: `1px solid ${importing ? "rgba(227,26,81,0.3)" : "var(--cream-border)"}`, background: importing ? "rgba(227,26,81,0.06)" : "transparent", fontFamily: "'Inter', sans-serif", fontSize: 11, color: importing ? "var(--red)" : "var(--ink-mid)", fontWeight: importing ? 700 : 400, cursor: "pointer", transition: "all 0.15s" }}>
             {importing ? "Stop" : "Cancel"}
           </button>
           {canImportPdf ? (
@@ -1374,17 +1375,45 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       .from("statements").select("id").eq("user_id", userId).eq("workspace", workspace).eq("label", label);
     if (existing?.length) throw new Error(`A statement labelled "${label}" already exists. Delete it first or rename before importing.`);
 
-    const stmtTimeout = new Promise((_, rej) =>
-      setTimeout(() => rej(new Error("Statement insert timed out — check Supabase connection.")), 10000)
-    );
-    const { data: newStmt, error: stmtErr } = await Promise.race([
-      supabase.from("statements").insert({ user_id: userId, workspace, label }).select().single(),
-      stmtTimeout
-    ]);
-    if (stmtErr) throw new Error(stmtErr.message);
-    if (!newStmt) throw new Error("Statement insert returned no data.");
+    // Use native fetch + AbortController so timeouts actually cancel the HTTP request
+    // (Promise.race doesn't cancel the underlying fetch in the Supabase JS client)
+    const sbUrl = supabase.supabaseUrl;
+    const sbKey = supabase.supabaseKey;
+    const getToken = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token || sbKey;
+    };
+    const sbFetch = async (table, rows, prefer, abortSignal) => {
+      const token = await getToken();
+      const res = await fetch(`${sbUrl}/rest/v1/${table}`, {
+        method: "POST",
+        signal: abortSignal,
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": sbKey,
+          "Authorization": `Bearer ${token}`,
+          "Prefer": prefer
+        },
+        body: JSON.stringify(rows)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return prefer.includes("representation") ? res.json() : null;
+    };
 
-    // Build rows with explicit null-safety on every field
+    // Insert statement — abort on timeout OR if user clicks Stop
+    const sa = new AbortController();
+    const st = setTimeout(() => sa.abort(), 10000);
+    signal?.addEventListener("abort", () => sa.abort());
+    let newStmt;
+    try {
+      const rows = await sbFetch("statements?select=id,label",
+        { user_id: userId, workspace, label },
+        "return=representation", sa.signal);
+      newStmt = Array.isArray(rows) ? rows[0] : rows;
+    } finally { clearTimeout(st); }
+    if (signal?.aborted) throw new Error("Import cancelled.");
+    if (!newStmt?.id) throw new Error("Statement insert returned no data.");
+
     const txRows = sanitised.map(t => ({
       statement_id: newStmt.id,
       user_id: userId,
@@ -1399,7 +1428,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       manual_category: null
     }));
 
-    console.log(`[import] ${txRows.length} rows built, starting sequential insert`);
+    console.log(`[import] ${txRows.length} rows built, starting chunked insert`);
     onProgress?.(`Saving ${txRows.length} transactions…`);
 
     if (signal?.aborted) {
@@ -1407,9 +1436,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       throw new Error("Import cancelled.");
     }
 
-    // Sequential small chunks — parallel overwhelms Supabase free tier connection pool.
-    // No { count } option — default is fine and avoids API version mismatches.
-    const CHUNK = 30;
+    const CHUNK = 50;
     for (let i = 0; i < txRows.length; i += CHUNK) {
       if (signal?.aborted) {
         await supabase.from("statements").delete().eq("id", newStmt.id);
@@ -1418,20 +1445,24 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       const chunk = txRows.slice(i, i + CHUNK);
       const done = Math.min(i + CHUNK, txRows.length);
       onProgress?.(`Saving ${done} / ${txRows.length}…`);
-      console.log(`[import] inserting rows ${i}–${done}`);
+      console.log(`[import] chunk ${i}–${done}`);
 
-      const { error } = await Promise.race([
-        supabase.from("transactions").insert(chunk),
-        new Promise((_, rej) => setTimeout(() => rej(new Error(`Timed out on rows ${i}–${done}`)), 20000))
-      ]);
-      if (error) {
+      const ca = new AbortController();
+      const ct = setTimeout(() => ca.abort(), 15000);
+      signal?.addEventListener("abort", () => ca.abort());
+      try {
+        await sbFetch("transactions", chunk, "return=minimal", ca.signal);
+      } catch(e) {
+        clearTimeout(ct);
         await supabase.from("statements").delete().eq("id", newStmt.id);
-        throw new Error(`Supabase error on rows ${i}–${done}: ${error.message}`);
+        if (e.name === "AbortError" || signal?.aborted) throw new Error("Import cancelled.");
+        throw new Error(`Failed chunk ${i}–${done}: ${e.message}`);
       }
+      clearTimeout(ct);
     }
 
     onProgress?.("Done!");
-    const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: parsed };
+    const newEntry = { id: newStmt.id, label, sortOrder: null, transactions: sanitised };
     setStatements(prev => {
       const updated = sortStatements([...prev, newEntry]);
       setActiveStmt(updated.length - 1);
