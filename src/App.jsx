@@ -1068,6 +1068,13 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const [customRange, setCustomRange]   = useState(null);      // { from, to } ISO strings
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [renamingStmt, setRenamingStmt] = useState(null); // { idx, value }
+  const tabsRef = useRef(null);
+  // Scroll active statement tab into view when activeStmt changes
+  useEffect(() => {
+    if (!tabsRef.current) return;
+    const active = tabsRef.current.querySelector("[data-active-tab='true']");
+    if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  }, [activeStmt, navMode]);
 
   const catNames = categories.map(c => c.name);
 
@@ -1295,54 +1302,72 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       )}
 
       {/* ── STATEMENT MODE: PERIOD TABS ── */}
-      {navMode === "statement" && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-          {statements.map((s, i) => {
-            const isActive = !customRange && i === activeStmt;
-            return (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: "1px solid var(--cream-border)", background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s" }}>
-                {isActive && statements.length > 1 && (
-                  <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
-                )}
-                {renamingStmt?.idx === i ? (
-                  <input
-                    autoFocus
-                    value={renamingStmt.value}
-                    onChange={e => setRenamingStmt(r => ({ ...r, value: e.target.value }))}
-                    onBlur={async () => {
-                      const newLabel = renamingStmt.value.trim();
-                      if (newLabel && newLabel !== s.label) {
-                        await supabase.from("statements").update({ label: newLabel }).eq("id", s.id);
-                        setStatements(prev => prev.map((st, si) => si === i ? { ...st, label: newLabel } : st));
-                      }
-                      setRenamingStmt(null);
-                    }}
-                    onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setRenamingStmt(null); }}
-                    style={{ padding: "3px 8px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", outline: "none", width: Math.max(80, renamingStmt.value.length * 7) + "px", letterSpacing: "0.05em" }}
-                  />
-                ) : (
-                  <button
-                    onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
-                    onDoubleClick={() => isActive && setRenamingStmt({ idx: i, value: s.label })}
-                    title={isActive ? "Double-click to rename" : ""}
-                    style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}
-                  >{s.label}</button>
-                )}
-                {isActive && statements.length > 1 && (
-                  <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
-                )}
-                <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11 }}>✕</button>
+      {navMode === "statement" && (() => {
+        const scrollTabs = (dir) => { if (tabsRef.current) tabsRef.current.scrollBy({ left: dir * 200, behavior: "smooth" }); };
+        return (
+          <div style={{ marginBottom: 14 }}>
+            {/* Scrollable tabs row */}
+            <div style={{ position: "relative" }}>
+              {/* Left fade + scroll arrow */}
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to right, var(--cream), transparent)", zIndex: 2, pointerEvents: "none" }} />
+              <button onClick={() => scrollTabs(-1)} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", zIndex: 3, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "50%", width: 22, height: 22, cursor: "pointer", fontSize: 10, color: "var(--ink-faint)", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>‹</button>
+              {/* Right fade + scroll arrow */}
+              <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to left, var(--cream), transparent)", zIndex: 2, pointerEvents: "none" }} />
+              <button onClick={() => scrollTabs(1)} style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", zIndex: 3, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "50%", width: 22, height: 22, cursor: "pointer", fontSize: 10, color: "var(--ink-faint)", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>›</button>
+              {/* Scrollable strip */}
+              <div ref={tabsRef} style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", paddingLeft: 28, paddingRight: 28, paddingBottom: 2, alignItems: "center" }}>
+                <style>{`.tabs-strip::-webkit-scrollbar{display:none}`}</style>
+                {statements.map((s, i) => {
+                  const isActive = !customRange && i === activeStmt;
+                  return (
+                    <div key={s.id} data-active-tab={isActive ? "true" : undefined} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: "1px solid var(--cream-border)", background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s", flexShrink: 0 }}>
+                      {isActive && statements.length > 1 && (
+                        <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
+                      )}
+                      {renamingStmt?.idx === i ? (
+                        <input
+                          autoFocus
+                          value={renamingStmt.value}
+                          onChange={e => setRenamingStmt(r => ({ ...r, value: e.target.value }))}
+                          onBlur={async () => {
+                            const newLabel = renamingStmt.value.trim();
+                            if (newLabel && newLabel !== s.label) {
+                              await supabase.from("statements").update({ label: newLabel }).eq("id", s.id);
+                              setStatements(prev => prev.map((st, si) => si === i ? { ...st, label: newLabel } : st));
+                            }
+                            setRenamingStmt(null);
+                          }}
+                          onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setRenamingStmt(null); }}
+                          style={{ padding: "3px 8px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", outline: "none", width: Math.max(80, renamingStmt.value.length * 7) + "px", letterSpacing: "0.05em" }}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
+                          onDoubleClick={() => isActive && setRenamingStmt({ idx: i, value: s.label })}
+                          title={isActive ? "Double-click to rename" : ""}
+                          style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}
+                        >{s.label}</button>
+                      )}
+                      {isActive && statements.length > 1 && (
+                        <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
+                      )}
+                      <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11 }}>✕</button>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-          {/* Custom range button */}
-          <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-            {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
-          </button>
-          {customRange && <button onClick={() => setCustomRange(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
-          <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
-        </div>
-      )}
+            </div>
+            {/* Action row below tabs — custom range + add */}
+            <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+              <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
+              </button>
+              {customRange && <button onClick={() => setCustomRange(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
+              <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {!statements.length && (
         <div style={{ textAlign: "center", padding: "80px 24px", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.06em" }}>
