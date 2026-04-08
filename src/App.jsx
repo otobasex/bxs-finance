@@ -1266,13 +1266,13 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         // Limit to 20 most recent statements to cap total data loaded.
         const recentStmts = stmts.slice(-20);
         const TX_LIMIT = 2000;
+        // Load only the 5 most recent statements eagerly — enough to populate the dashboard.
+        // Older statements load in the background so the UI is usable immediately.
+        const EAGER = 5;
+        const eagerStmts = recentStmts.slice(-EAGER);
+        const lazyStmts  = recentStmts.slice(0, -EAGER);
 
-        // Load statements sequentially — parallel queries flood Supabase on the personal
-        // workspace which has large statements (600+ rows). Sequential is slower but reliable.
-        const results = [];
-        for (let i = 0; i < recentStmts.length; i++) {
-          const s = recentStmts[i];
-          // Per-query timeout via Promise.race — prevents any single slow query hanging forever
+        const loadOne = async (s) => {
           let txs = [];
           try {
             const result = await Promise.race([
@@ -1288,12 +1288,28 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
             console.error(`[load] ${e.message} — skipping`);
           }
           if (txs.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap.`);
-          const transactions = txs.map(t => ({
-            ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
-            isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
-          }));
-          results.push({ id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions });
-          // Render progressively — update state after each statement so UI isn't blank while loading
+          return {
+            id: s.id, label: s.label, sortOrder: s.sort_order ?? null,
+            transactions: txs.map(t => ({
+              ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
+              isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
+            }))
+          };
+        };
+
+        // Load the 5 most recent sequentially and render as each arrives
+        const results = [];
+        for (const s of eagerStmts) {
+          const entry = await loadOne(s);
+          results.push(entry);
+          setStatements(sortStatements([...results]));
+        }
+        setDbLoading(false); // Mark as loaded — UI is usable now
+
+        // Load older statements in the background without blocking
+        for (const s of lazyStmts) {
+          const entry = await loadOne(s);
+          results.push(entry);
           setStatements(sortStatements([...results]));
         }
       } catch (e) {
