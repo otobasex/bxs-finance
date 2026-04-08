@@ -1070,7 +1070,12 @@ function ImportModal({ open, onClose, onImport, onImportDirect, catNames }) {
           <button onClick={() => {
             if (importing && importAbortRef.current) {
               importAbortRef.current.abort();
-              // State cleanup happens in the finally block of the import button handler
+              // Force UI reset immediately — don't wait for the hung network request to resolve
+              setImporting(false);
+              setImportProgress("");
+              importAbortRef.current = null;
+              onClose();
+              resetPdf();
             } else {
               onClose(); resetPdf();
             }
