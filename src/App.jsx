@@ -2657,6 +2657,7 @@ const INVOICES = [
   { name: "Redoystor Website",                       amount: 6500,  invoiceDate: "2026-02-21" },
   { name: "NCH Webinar Ticketing",                   amount: 11500, invoiceDate: "2026-03-11" },
   { name: "Black Jills (Brand + Website)",           amount: 10000, invoiceDate: null },
+  { name: "Altitude Energy Group (2025 debt)",       amount: 40000, invoiceDate: null },
 ];
 
 function ReceivablesCard() {
