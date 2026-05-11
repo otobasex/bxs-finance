@@ -2052,9 +2052,9 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           </div>
         </div>
 
-        {/* CATEGORY */}
-        <div className="fade-up" style={{ animationDelay: "0.1s", marginBottom: 12 }}>
-          <div className="stat-card" style={{ padding: "20px 24px" }}>
+        <div className="dual-bento fade-up" style={{ animationDelay: "0.1s" }}>
+          {/* CATEGORY */}
+          <div className="stat-card" style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Spend by Category</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -2101,10 +2101,9 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
             })()}
             <PillTicker categories={summary.sorted} catMap={catMap} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
           </div>
-        </div>
 
-        {/* TRANSACTIONS */}
-        <div className="fade-up stat-card" style={{ animationDelay: "0.15s", overflow: "hidden", padding: 0 }}>
+          {/* TRANSACTIONS */}
+          <div className="stat-card" style={{ overflow: "hidden", padding: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--cream-border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div>
               <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>
@@ -2202,6 +2201,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
               </div>
             );
           })()}
+          </div>
         </div>
       </>}
 
@@ -2602,6 +2602,11 @@ export default function App() {
         .bento-top .net-hero-inner { grid-column: 1 / -1; }
         @media (min-width: 640px) { .bento-top { grid-template-columns: 1fr 1fr 1fr; } .bento-top .net-hero-inner { grid-column: auto; } }
         @media (min-width: 1180px) { .bento-top { grid-template-columns: 1fr 1fr 1fr 1fr 1.4fr; } }
+
+        /* Categories + Transactions side-by-side */
+        .dual-bento { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
+        .dual-bento > .stat-card { margin: 0; min-width: 0; }
+        @media (max-width: 1100px) { .dual-bento { grid-template-columns: 1fr; } }
         .donut-container { width: 200px; height: 200px; }
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
