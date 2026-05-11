@@ -2539,7 +2539,7 @@ function TopMoversRow({ allTransactions }) {
         <div className="mover-label">Top spike · {movers.lastLabel}</div>
         {movers.spike ? (
           <>
-            <div className="mover-value">{movers.spike.cat} +{movers.spike.pct.toFixed(0)}%</div>
+            <div className="mover-value">{movers.spike.cat} <span style={{ color: "#1F8A55" }}>+{movers.spike.pct.toFixed(0)}%</span></div>
             <div className="mover-detail">{fmt(movers.spike.lastAmount, true)} in {movers.lastLabel} · vs {movers.prevLabel} {fmt(movers.spike.prevAmount, true)}.</div>
           </>
         ) : (<div className="mover-detail">No category increase vs {movers.prevLabel}.</div>)}
@@ -2551,7 +2551,7 @@ function TopMoversRow({ allTransactions }) {
         <div className="mover-label">Top drop · {movers.lastLabel}</div>
         {movers.drop ? (
           <>
-            <div className="mover-value">{movers.drop.cat} {movers.drop.pct.toFixed(0)}%</div>
+            <div className="mover-value">{movers.drop.cat} <span style={{ color: "var(--red)" }}>{movers.drop.pct.toFixed(0)}%</span></div>
             <div className="mover-detail">{fmt(movers.drop.lastAmount, true)} in {movers.lastLabel} · vs {movers.prevLabel} {fmt(movers.drop.prevAmount, true)}.</div>
           </>
         ) : (<div className="mover-detail">No category decrease vs {movers.prevLabel}.</div>)}
