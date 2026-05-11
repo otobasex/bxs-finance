@@ -1,6 +1,39 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./supabase.js";
 
+/* ─── INDEXEDDB CACHE (statement payload, stale-while-revalidate) ─── */
+const IDB_NAME = "bxs-finance";
+const IDB_STORE = "cache";
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbGet(key) {
+  try {
+    const db = await idbOpen();
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction(IDB_STORE, "readonly").objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) { console.warn("[idb] get failed:", e); return undefined; }
+}
+async function idbSet(key, value) {
+  try {
+    const db = await idbOpen();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { console.warn("[idb] set failed:", e); }
+}
+
 /* ─── DEFAULT CATEGORIES ─── */
 const DEFAULT_CATEGORIES = [
   { id: "income",    name: "Income",              color: "#22c55e", icon: "↓" },
@@ -1208,6 +1241,74 @@ function CustomRangePicker({ onApply, onClose }) {
   );
 }
 
+/* ─── PERIOD CONTROL ─── */
+function PeriodControl({ period, setPeriod, onOpenCustom }) {
+  const anchor = period.anchor instanceof Date
+    ? period.anchor
+    : (period.anchor ? new Date(period.anchor) : new Date());
+
+  const setType = (type) => {
+    if (type === 'custom') { onOpenCustom(); return; }
+    if (type === 'all' || type === 'statement') { setPeriod({ type }); return; }
+    setPeriod({ type, anchor: new Date() });
+  };
+
+  const step = (delta) => {
+    if (period.type === 'month') {
+      setPeriod({ type: 'month', anchor: new Date(anchor.getFullYear(), anchor.getMonth() + delta, 15) });
+    } else if (period.type === 'fy' || period.type === 'cy') {
+      setPeriod({ type: period.type, anchor: new Date(anchor.getFullYear() + delta, anchor.getMonth(), 15) });
+    }
+  };
+
+  const label = (() => {
+    if (period.type === 'month') return `${ALL_MONTHS[anchor.getMonth()].slice(0,3)} ${anchor.getFullYear()}`;
+    if (period.type === 'cy') return `${anchor.getFullYear()}`;
+    if (period.type === 'fy') {
+      const fyStart = anchor.getMonth() >= 2 ? anchor.getFullYear() : anchor.getFullYear() - 1;
+      return `FY ${fyStart}/${String(fyStart + 1).slice(-2)}`;
+    }
+    if (period.type === 'all') return "All time";
+    if (period.type === 'custom') return `${period.from} → ${period.to}`;
+    return "Statement";
+  })();
+
+  const types = [
+    { id: 'month',     label: 'Month' },
+    { id: 'fy',        label: 'FY' },
+    { id: 'cy',        label: 'CY' },
+    { id: 'all',       label: 'All' },
+    { id: 'custom',    label: 'Custom' },
+    { id: 'statement', label: 'Statement' },
+  ];
+
+  const canStep = period.type === 'month' || period.type === 'fy' || period.type === 'cy';
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2 }}>
+        {types.map(({ id, label: btnLabel }) => {
+          const active = period.type === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setType(id)}
+              style={{ padding: "5px 12px", borderRadius: 100, border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", background: active ? "var(--charcoal)" : "transparent", color: active ? "white" : "var(--ink-faint)", transition: "all 0.2s" }}
+            >{btnLabel}</button>
+          );
+        })}
+      </div>
+      {canStep && (
+        <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--cream-border)", borderRadius: 100, padding: "2px 4px", background: "var(--cream-card)" }}>
+          <button onClick={() => step(-1)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1 }}>‹</button>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.05em", minWidth: 70, textAlign: "center" }}>{label}</span>
+          <button onClick={() => step(1)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1 }}>›</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── DASHBOARD PANEL ─── */
 function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const [statements, setStatements]     = useState([]);
@@ -1223,12 +1324,22 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const [editTx, setEditTx]             = useState(null);
   const [dbLoading, setDbLoading]       = useState(true);
   const [loadError, setLoadError]       = useState("");
+  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0 });
 
-  // Navigation mode
-  const [navMode, setNavMode]           = useState("calendar"); // "calendar" | "statement"
-  const [selectedMonth, setSelectedMonth] = useState(null);    // { month, year, label }
-  const [sharedFYYear, setSharedFYYear]   = useState(() => currentFYStartYear()); // shared across both chart views
-  const [customRange, setCustomRange]   = useState(null);      // { from, to } ISO strings
+  // Shared FY year for chart views
+  const [sharedFYYear, setSharedFYYear]   = useState(() => currentFYStartYear());
+
+  // Time period filter — single source of truth for bento + transaction list
+  // type: 'fy' | 'cy' | 'month' | 'all' | 'custom' | 'statement'
+  //   fy/cy:    anchor picks which year; FY runs Mar→Feb
+  //   month:    anchor picks which calendar month
+  //   all:      no filter
+  //   custom:   from + to (ISO date strings, inclusive)
+  //   statement: activeStmt picks which imported statement
+  const [period, setPeriod] = useState(() => ({ type: 'fy', anchor: new Date() }));
+  // Visualization mode is derived from period — 'statement' type shows statement tabs/chart,
+  // everything else shows the calendar/year chart.
+  const navMode = period.type === 'statement' ? 'statement' : 'calendar';
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [renamingStmt, setRenamingStmt] = useState(null); // { idx, value }
   const tabsRef = useRef(null);
@@ -1241,10 +1352,28 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
   const catNames = categories.map(c => c.name);
 
-  /* Load statements — sequential with progressive rendering */
+  /* Load statements — stale-while-revalidate from IndexedDB, then parallel fetch */
   useEffect(() => {
+    let cancelled = false;
+    const cacheKey = `stmts:${userId}:${workspace}`;
+
     const load = async () => {
-      setDbLoading(true);
+      // 1) Cache: read and render immediately if present
+      const cached = await idbGet(cacheKey);
+      if (!cancelled && cached && Array.isArray(cached) && cached.length) {
+        // Date objects round-trip through IDB via structured clone; defensive coerce anyway
+        const hydrated = cached.map(s => ({
+          ...s,
+          transactions: s.transactions.map(t => ({ ...t, date: t.date instanceof Date ? t.date : new Date(t.date) }))
+        }));
+        setStatements(sortStatements(hydrated));
+        setDbLoading(false);
+      } else {
+        setDbLoading(true);
+      }
+      setLoadProgress({ loaded: 0, total: 0 });
+
+      // 2) Always refetch fresh in the background
       try {
         // Use native fetch for statements query — Supabase JS client cold-starts are slow
         // and the Promise.race timeout was firing before the query could complete.
@@ -1257,20 +1386,23 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           ),
           new Promise((_, rej) => setTimeout(() => rej(new Error("statements query timed out after 20s")), 20000))
         ]);
+        if (cancelled) return;
         if (!stmtsRes.ok) throw new Error(`statements fetch failed: ${stmtsRes.status}`);
         const stmts = await stmtsRes.json();
-        if (!stmts || !stmts.length) { setStatements([]); setDbLoading(false); return; }
+        if (!stmts || !stmts.length) {
+          setStatements([]);
+          setDbLoading(false);
+          await idbSet(cacheKey, []);
+          return;
+        }
 
-        // Load each statement's transactions individually in parallel.
-        // Avoids the slow .in() with many UUIDs — each query is simple and fast.
-        // Limit to 20 most recent statements to cap total data loaded.
-        const recentStmts = stmts.slice(-20);
-        const TX_LIMIT = 2000;
-        // Load only the 5 most recent statements eagerly — enough to populate the dashboard.
-        // Older statements load in the background so the UI is usable immediately.
-        const EAGER = 5;
-        const eagerStmts = recentStmts.slice(-EAGER);
-        const lazyStmts  = recentStmts.slice(0, -EAGER);
+        const TX_LIMIT = 10000;
+        const CONCURRENCY = 4;
+        if (!cached) setLoadProgress({ loaded: 0, total: stmts.length });
+
+        const results = new Array(stmts.length);
+        let cursor = 0;
+        let done = 0;
 
         const loadOne = async (s) => {
           let txs = [];
@@ -1288,63 +1420,115 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
             console.error(`[load] ${e.message} — skipping`);
           }
           if (txs.length === TX_LIMIT) console.warn(`[load] Statement "${s.label}" hit the ${TX_LIMIT} row cap.`);
-          return {
-            id: s.id, label: s.label, sortOrder: s.sort_order ?? null,
-            transactions: txs.map(t => ({
-              ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
-              isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
-            }))
-          };
+          const transactions = txs.map(t => ({
+            ...t, id: t.local_id, date: new Date(t.date), dateStr: t.date_str,
+            isCredit: t.is_credit, aiCategorised: t.ai_categorised, manualCategory: t.manual_category
+          }));
+          return { id: s.id, label: s.label, sortOrder: s.sort_order ?? null, transactions };
         };
 
-        // Load the 5 most recent sequentially and render as each arrives
-        const results = [];
-        for (const s of eagerStmts) {
-          const entry = await loadOne(s);
-          results.push(entry);
-          setStatements(sortStatements([...results]));
-        }
-        setDbLoading(false); // Mark as loaded — UI is usable now
+        const worker = async () => {
+          while (true) {
+            if (cancelled) return;
+            const i = cursor++;
+            if (i >= stmts.length) return;
+            results[i] = await loadOne(stmts[i]);
+            done++;
+            if (cancelled) return;
+            // Only show progress UI when there's no cached data to show
+            if (!cached) {
+              setLoadProgress({ loaded: done, total: stmts.length });
+              setStatements(sortStatements(results.filter(Boolean)));
+            }
+          }
+        };
 
-        // Load older statements in the background without blocking
-        for (const s of lazyStmts) {
-          const entry = await loadOne(s);
-          results.push(entry);
-          setStatements(sortStatements([...results]));
-        }
+        await Promise.all(Array.from({ length: Math.min(CONCURRENCY, stmts.length) }, worker));
+        if (cancelled) return;
+        const fresh = sortStatements(results.filter(Boolean));
+        setStatements(fresh);
+        await idbSet(cacheKey, fresh);
       } catch (e) {
+        if (cancelled) return;
         console.error("Failed to load statements:", e);
-        setLoadError(e.message || "Failed to load — check console for details.");
-        setStatements([]);
+        // If we have cached data, keep showing it; only surface error on cold load
+        if (!cached) {
+          setLoadError(e.message || "Failed to load — check console for details.");
+          setStatements([]);
+        }
       } finally {
-        setDbLoading(false);
+        if (!cancelled) setDbLoading(false);
       }
     };
     load();
+    return () => { cancelled = true; };
   }, [userId, workspace]);
+
+  /* Persist statements to IDB cache after mutations (debounced). The initial load
+     writes its own cache; this catches imports/edits/deletes that happen later. */
+  useEffect(() => {
+    if (dbLoading) return;
+    const t = setTimeout(() => {
+      idbSet(`stmts:${userId}:${workspace}`, statements);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [statements, dbLoading, userId, workspace]);
 
   /* All transactions flat (for calendar mode) */
   const allTransactions = useMemo(() => statements.flatMap(s => s.transactions), [statements]);
 
-  /* Active transaction set based on nav mode */
+  /* Period → [from, to] inclusive range. null = no filter (all time). */
+  const periodRange = useMemo(() => {
+    if (period.type === 'all') return null;
+    if (period.type === 'statement') return null; // handled separately below
+    if (period.type === 'custom') {
+      if (!period.from || !period.to) return null;
+      return { from: new Date(period.from), to: new Date(period.to + 'T23:59:59') };
+    }
+    const a = period.anchor instanceof Date ? period.anchor : new Date(period.anchor);
+    if (period.type === 'month') {
+      return {
+        from: new Date(a.getFullYear(), a.getMonth(), 1),
+        to:   new Date(a.getFullYear(), a.getMonth() + 1, 0, 23, 59, 59),
+      };
+    }
+    if (period.type === 'cy') {
+      return {
+        from: new Date(a.getFullYear(), 0, 1),
+        to:   new Date(a.getFullYear(), 11, 31, 23, 59, 59),
+      };
+    }
+    // fy — Mar 1 → Feb end
+    const fyStart = a.getMonth() >= 2 ? a.getFullYear() : a.getFullYear() - 1;
+    return {
+      from: new Date(fyStart, 2, 1),
+      to:   new Date(fyStart + 1, 1, 29, 23, 59, 59),
+    };
+  }, [period]);
+
+  /* Active transaction set — period drives the view */
   const transactions = useMemo(() => {
-    if (navMode === "statement") {
-      if (customRange) {
-        const from = new Date(customRange.from);
-        const to   = new Date(customRange.to + "T23:59:59");
-        return allTransactions.filter(t => new Date(t.date) >= from && new Date(t.date) <= to);
-      }
+    if (period.type === 'statement') {
       return (statements[activeStmt] || statements[0])?.transactions || [];
     }
-    // Calendar mode
-    if (selectedMonth) {
-      return allTransactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === selectedMonth.month && d.getFullYear() === selectedMonth.year;
-      });
-    }
-    return allTransactions; // no month selected = full year aggregate
-  }, [navMode, statements, activeStmt, allTransactions, selectedMonth, customRange]);
+    if (!periodRange) return allTransactions;
+    const { from, to } = periodRange;
+    return allTransactions.filter(t => {
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      return d >= from && d <= to;
+    });
+  }, [period.type, periodRange, statements, activeStmt, allTransactions]);
+
+  /* Derived shapes for legacy UI components (YearChart, custom range button label) */
+  const selectedMonth = useMemo(() => {
+    if (period.type !== 'month') return null;
+    const a = period.anchor instanceof Date ? period.anchor : new Date(period.anchor);
+    return { month: a.getMonth(), year: a.getFullYear(), label: `${ALL_MONTHS[a.getMonth()]} ${a.getFullYear()}` };
+  }, [period]);
+  const customRange = useMemo(() => {
+    if (period.type !== 'custom') return null;
+    return { from: period.from, to: period.to };
+  }, [period]);
 
   const summary = useMemo(() => {
     const income = transactions.filter(t => t.isCredit).reduce((s, t) => s + t.amount, 0);
@@ -1627,19 +1811,25 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
   // Label for what's currently shown
   const contextLabel = useMemo(() => {
-    if (navMode === "calendar") {
-      if (selectedMonth) return selectedMonth.label;
-      const startYear = currentFYStartYear();
-      return `FY ${startYear}/${startYear + 1} · All Months`;
-    }
-    if (customRange) return `${customRange.from} → ${customRange.to}`;
-    return (statements[activeStmt] || statements[0])?.label || "No statements";
-  }, [navMode, selectedMonth, statements, activeStmt, customRange]);
+    if (period.type === 'statement') return (statements[activeStmt] || statements[0])?.label || "No statements";
+    if (period.type === 'all') return "All time";
+    if (period.type === 'custom') return `${period.from} → ${period.to}`;
+    const a = period.anchor instanceof Date ? period.anchor : new Date(period.anchor);
+    if (period.type === 'month') return `${ALL_MONTHS[a.getMonth()]} ${a.getFullYear()}`;
+    if (period.type === 'cy') return `${a.getFullYear()}`;
+    // fy
+    const fyStart = a.getMonth() >= 2 ? a.getFullYear() : a.getFullYear() - 1;
+    return `FY ${fyStart}/${String(fyStart + 1).slice(-2)}`;
+  }, [period, statements, activeStmt]);
 
   if (dbLoading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 80, gap: 12 }}>
       <div className="ai-spinner" />
-      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>Loading statements…</span>
+      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)" }}>
+        {loadProgress.total > 0
+          ? `Loading statements… ${loadProgress.loaded} of ${loadProgress.total}`
+          : "Loading statements…"}
+      </span>
     </div>
   );
 
@@ -1654,15 +1844,13 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   return (
     <div style={{ position: "relative" }}>
 
-      {/* ── NAV MODE TOGGLE ── */}
+      {/* ── PERIOD CONTROL ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2 }}>
-          {[["calendar","📅 Calendar"],["statement","🗂 Statement"]].map(([mode, label]) => (
-            <button key={mode} onClick={() => { setNavMode(mode); setSelectedMonth(null); setCustomRange(null); setActiveCategory(null); setSearch(""); }} style={{ padding: "5px 14px", borderRadius: 100, border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", background: navMode === mode ? "var(--charcoal)" : "transparent", color: navMode === mode ? "white" : "var(--ink-faint)", transition: "all 0.2s" }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <PeriodControl
+          period={period}
+          setPeriod={(p) => { setPeriod(p); setActiveCategory(null); setSearch(""); }}
+          onOpenCustom={() => setShowCustomRange(true)}
+        />
         <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", paddingLeft: 4 }}>{contextLabel}</div>
       </div>
 
@@ -1671,7 +1859,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <YearChart
           allTransactions={allTransactions}
           selectedMonth={selectedMonth}
-          onSelectMonth={m => { setSelectedMonth(m); setActiveCategory(null); setSearch(""); }}
+          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: 'fy', anchor: new Date() }); setActiveCategory(null); setSearch(""); }}
           sharedFYYear={sharedFYYear}
           onFYChange={setSharedFYYear}
           dark={dark}
@@ -1684,7 +1872,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           allTransactions={allTransactions}
           selectedMonth={null}
           onSelectMonth={m => {
-            if (m) { setNavMode("calendar"); setSelectedMonth(m); setActiveCategory(null); setSearch(""); }
+            if (m) { setPeriod({ type: 'month', anchor: new Date(m.year, m.month, 15) }); setActiveCategory(null); setSearch(""); }
           }}
           sharedFYYear={sharedFYYear}
           onFYChange={setSharedFYYear}
@@ -1736,7 +1924,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
                         />
                       ) : (
                         <button
-                          onClick={() => { setActiveStmt(i); setCustomRange(null); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
+                          onClick={() => { setActiveStmt(i); setPeriod({ type: 'statement' }); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
                           onDoubleClick={() => isActive && setRenamingStmt({ idx: i, value: s.label })}
                           title={isActive ? "Double-click to rename" : ""}
                           style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}
@@ -1756,7 +1944,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
               <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
                 {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
               </button>
-              {customRange && <button onClick={() => setCustomRange(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
+              {customRange && <button onClick={() => setPeriod({ type: 'fy', anchor: new Date() })} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
               <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
             </div>
           </div>
@@ -1783,7 +1971,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         )}
 
         {/* KPI CARDS — animate on change */}
-        <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${navMode}-${selectedMonth?.label}-${customRange?.from}-${activeStmt}`}>
+        <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${period.type}-${period.anchor?.getTime?.() ?? period.from ?? ''}-${activeStmt}`}>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
@@ -1962,7 +2150,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       <ImportModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} onImportDirect={handleImportDirect} catNames={catNames} />
       {pickerTx && <CategoryPicker transaction={pickerTx} categories={categories} onSelect={handleManualCategory} onClose={() => setPickerTx(null)} />}
       {editTx && <EditTxModal transaction={editTx} categories={categories} catMap={catMap} onSave={handleEditSave} onClose={() => setEditTx(null)} />}
-      {showCustomRange && <CustomRangePicker onApply={(from, to) => { setCustomRange({ from, to }); setShowCustomRange(false); setActiveCategory(null); setSearch(""); }} onClose={() => setShowCustomRange(false)} />}
+      {showCustomRange && <CustomRangePicker onApply={(from, to) => { setPeriod({ type: 'custom', from, to }); setShowCustomRange(false); setActiveCategory(null); setSearch(""); }} onClose={() => setShowCustomRange(false)} />}
 
       <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 40 }}>
         <button className="fab-import" onClick={() => setShowImport(true)} title="Import Statement"><span className="fab-icon">+</span><span className="fab-label">Import Statement</span></button>
