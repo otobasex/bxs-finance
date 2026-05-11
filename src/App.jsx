@@ -729,8 +729,13 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
 
   return (
     <div className="year-chart-v3" style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--r-2xl)", padding: "26px 30px 20px", marginBottom: 14 }}>
-      {/* Header — totals only; period picker above drives the FY shown */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, position: "relative", zIndex: 1, gap: 28, flexWrap: "wrap" }}>
+      {/* Header — totals pinned upper-right; clear button next to them when a month is selected */}
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 36, position: "relative", zIndex: 1, gap: 16, flexWrap: "wrap" }}>
+        {selectedMonth && (
+          <button onClick={() => onSelectMonth(null)} style={{ background: clearBg, border: `1px solid ${clearBd}`, borderRadius: 100, padding: "4px 12px", color: clearTxt, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", cursor: "pointer", textTransform: "uppercase" }}>
+            Clear ✕
+          </button>
+        )}
         <div style={{ display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Income</span>
@@ -745,11 +750,6 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: netCol(totalIncome - totalSpend) }}>{fmt(totalIncome - totalSpend, true)}</span>
           </div>
         </div>
-        {selectedMonth && (
-          <button onClick={() => onSelectMonth(null)} style={{ background: clearBg, border: `1px solid ${clearBd}`, borderRadius: 100, padding: "4px 12px", color: clearTxt, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", cursor: "pointer", textTransform: "uppercase" }}>
-            Clear ✕
-          </button>
-        )}
       </div>
 
       {/* Bars */}
