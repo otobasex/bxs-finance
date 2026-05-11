@@ -1979,6 +1979,16 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           </div>
         </div>
 
+        {/* ── TOP MOVERS ── */}
+        <TopMoversRow allTransactions={allTransactions} monthlyIncome={monthlyIncome} />
+
+        {/* ── GOAL / RECEIVABLES / UPCOMING TRIO ── */}
+        <div className="duo-row fade-up" style={{ animationDelay: "0.09s" }}>
+          <GoalCard monthlyIncome={monthlyIncome} />
+          <ReceivablesCard />
+          <UpcomingCard />
+        </div>
+
         {/* ── YEAR OVERVIEW CHART ── */}
         <YearChart
           allTransactions={allTransactions}
@@ -2386,6 +2396,227 @@ const BUILD_QUEUE_ITEMS = [
     icon: <><polyline points="17 2 21 6 17 10"/><path d="M3 12V8a4 4 0 0 1 4-4h14"/><polyline points="7 22 3 18 7 14"/><path d="M21 12v4a4 4 0 0 1-4 4H3"/></> },
 ];
 
+/* ─── TOP MOVERS ROW ─── */
+function TopMoversRow({ allTransactions, monthlyIncome }) {
+  const movers = useMemo(() => {
+    const now = new Date();
+    const thisM = now.getMonth(), thisY = now.getFullYear();
+    const last = new Date(thisY, thisM - 1, 1);
+    const lastM = last.getMonth(), lastY = last.getFullYear();
+
+    const thisCat = {}, lastCat = {};
+    let thisOther = 0, thisTotal = 0, thisOtherCount = 0;
+    for (const t of allTransactions) {
+      if (t.isCredit) continue;
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      const m = d.getMonth(), y = d.getFullYear();
+      const cat = t.manualCategory || t.category;
+      if (m === thisM && y === thisY) {
+        thisCat[cat] = (thisCat[cat] || 0) + t.amount;
+        thisTotal += t.amount;
+        if (cat === "Other") { thisOther += t.amount; thisOtherCount++; }
+      } else if (m === lastM && y === lastY) {
+        lastCat[cat] = (lastCat[cat] || 0) + t.amount;
+      }
+    }
+
+    const deltas = [];
+    const cats = new Set([...Object.keys(thisCat), ...Object.keys(lastCat)]);
+    for (const cat of cats) {
+      if (cat === "Income") continue;
+      const a = thisCat[cat] || 0;
+      const b = lastCat[cat] || 0;
+      if (Math.max(a, b) < 100) continue; // noise floor
+      const pct = b > 0 ? ((a - b) / b) * 100 : (a > 0 ? 999 : 0);
+      deltas.push({ cat, thisAmount: a, lastAmount: b, pct, abs: Math.abs(a - b) });
+    }
+
+    const spike = deltas.filter(d => d.pct > 0 && d.lastAmount > 0).sort((x, y) => y.pct - x.pct)[0];
+    const drop  = deltas.filter(d => d.pct < 0).sort((x, y) => x.pct - y.pct)[0];
+
+    const otherPct = thisTotal > 0 ? (thisOther / thisTotal) * 100 : 0;
+    return { spike, drop, otherPct, otherCount: thisOtherCount, thisLabel: monthlyIncome.thisLabel, lastLabel: monthlyIncome.lastLabel };
+  }, [allTransactions, monthlyIncome.thisLabel, monthlyIncome.lastLabel]);
+
+  // If we have no data at all, render nothing
+  if (!movers.spike && !movers.drop && movers.otherCount === 0) return null;
+
+  return (
+    <div className="movers-row fade-up" style={{ animationDelay: "0.07s" }}>
+      <div className="mover-card up">
+        <div className="mover-row-top"><span className="mover-arrow">↗</span><span className="mover-label">Top spike</span></div>
+        {movers.spike ? (
+          <>
+            <div className="mover-value">{movers.spike.cat} +{movers.spike.pct.toFixed(0)}%</div>
+            <div className="mover-detail">{fmt(movers.spike.thisAmount, true)} this month · vs {movers.lastLabel} {fmt(movers.spike.lastAmount, true)}.</div>
+          </>
+        ) : (<div className="mover-detail">No category increase vs last month.</div>)}
+      </div>
+      <div className="mover-card down">
+        <div className="mover-row-top"><span className="mover-arrow">↘</span><span className="mover-label">Top drop</span></div>
+        {movers.drop ? (
+          <>
+            <div className="mover-value">{movers.drop.cat} {movers.drop.pct.toFixed(0)}%</div>
+            <div className="mover-detail">{fmt(movers.drop.thisAmount, true)} this month · vs {movers.lastLabel} {fmt(movers.drop.lastAmount, true)}.</div>
+          </>
+        ) : (<div className="mover-detail">No category decrease vs last month.</div>)}
+      </div>
+      <div className="mover-card watch">
+        <div className="mover-row-top"><span className="mover-arrow">⚠</span><span className="mover-label">Watch</span></div>
+        <div className="mover-value">Other {movers.otherPct.toFixed(0)}% of spend</div>
+        <div className="mover-detail">{movers.otherCount} transactions likely miscategorised.</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── GOAL / RECEIVABLES / UPCOMING (trio) ─── */
+const GOAL_MONTHLY = 200000; // R200k — matches the goal pill
+
+function GoalCard({ monthlyIncome }) {
+  const now = new Date();
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const actual = monthlyIncome.thisAmount;
+  const pct = Math.min(100, (actual / GOAL_MONTHLY) * 100);
+  const projected = dayOfMonth > 0 ? (actual / dayOfMonth) * daysInMonth : 0;
+  const shortBy = Math.max(0, GOAL_MONTHLY - projected);
+
+  const radius = 60;
+  const circ = 2 * Math.PI * radius;
+  const dash = (pct / 100) * circ;
+
+  return (
+    <section className="goal-card">
+      <div className="goal-head">
+        <span className="goal-eyebrow">Monthly goal · gross revenue</span>
+        <span className="goal-period">{monthlyIncome.thisLabel} · {dayOfMonth}d in</span>
+      </div>
+      <div className="goal-body">
+        <div className="goal-donut">
+          <svg viewBox="0 0 150 150">
+            <defs>
+              <linearGradient id="goal-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#FBC2B0"/>
+                <stop offset="100%" stopColor="#F27067"/>
+              </linearGradient>
+            </defs>
+            <circle cx="75" cy="75" r={radius} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="10"/>
+            <circle cx="75" cy="75" r={radius} fill="none" stroke="url(#goal-grad)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${dash} ${circ - dash}`}/>
+          </svg>
+          <div className="goal-donut-center">
+            <div className="goal-donut-pct">{pct.toFixed(1)}%</div>
+            <div className="goal-donut-label">to target</div>
+          </div>
+        </div>
+        <div className="goal-info">
+          <div className="goal-actual">{fmt(actual, true)}</div>
+          <div className="goal-target">of <b>{fmt(GOAL_MONTHLY, true)}</b> target</div>
+        </div>
+      </div>
+      <div className="goal-foot">
+        <span>Pace: {fmt(projected, true)} projected</span>
+        <span>Short by <span className="pct">{fmt(shortBy, true)}</span></span>
+      </div>
+    </section>
+  );
+}
+
+// TODO: pull from Notion when credentials are provided
+const MOCK_RECEIVABLES = [
+  { name: "SGEG · April retainer",   amount: 32000, dueDate: "2026-04-25", paid: false },
+  { name: "Akpabio Inc · Phase II",  amount: 53000, dueDate: "2026-05-22", paid: false },
+];
+
+function ReceivablesCard() {
+  const today = new Date();
+  const enriched = MOCK_RECEIVABLES.map(r => {
+    const due = new Date(r.dueDate);
+    const diffDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
+    return { ...r, due, overdue: diffDays > 0 && !r.paid, daysLate: diffDays > 0 ? diffDays : 0, daysUntil: diffDays < 0 ? -diffDays : 0 };
+  });
+  const outstanding = enriched.filter(r => !r.paid).reduce((s, r) => s + r.amount, 0);
+  const overdue = enriched.filter(r => r.overdue);
+  const overdueAmt = overdue.reduce((s, r) => s + r.amount, 0);
+  const oldestOverdue = overdue.length ? Math.max(...overdue.map(r => r.daysLate)) : 0;
+
+  return (
+    <section className="recv-card">
+      <div className="recv-head">
+        <div className="recv-title">Receivables</div>
+        <div className="recv-meta">{enriched.length} invoices · {overdue.length} overdue</div>
+      </div>
+      <div className="recv-stats">
+        <div className="recv-stat">
+          <span className="label">Outstanding</span>
+          <span className="value">{fmt(outstanding, true)}</span>
+          <span className="sub">{enriched.length} invoices</span>
+        </div>
+        <div className={`recv-stat${overdue.length ? " overdue" : ""}`}>
+          <span className="label">Overdue</span>
+          <span className="value">{fmt(overdueAmt, true)}</span>
+          <span className="sub">{overdue.length ? `${oldestOverdue} days late` : "none"}</span>
+        </div>
+      </div>
+      <div className="recv-list">
+        {enriched.map((r, i) => (
+          <div key={i} className={`recv-invoice${r.overdue ? " overdue" : ""}`}>
+            <span className="name">{r.name}</span>
+            <span className="age">{r.overdue ? `${r.daysLate}d late` : `due ${r.due.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}</span>
+            <span className="amt">{fmt(r.amount, true)}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// TODO: replace with the user's actual fixed-expense list
+const MOCK_UPCOMING = [
+  { name: "Rent · Sandton",          amount: 12500, day: 1,  recurring: true,  label: "Recurring" },
+  { name: "FNB Service Fee",         amount: 350,   day: 5,  recurring: true,  label: "Recurring" },
+  { name: "Allan Gray Investment",   amount: 3500,  day: 8,  recurring: true,  label: "Recurring" },
+  { name: "Provisional Tax · Q1",    amount: 1200,  day: 15, recurring: false, label: "Due" },
+];
+
+function UpcomingCard() {
+  const today = new Date();
+  const thisY = today.getFullYear();
+  const thisM = today.getMonth();
+  const sevenDays = 7;
+  const horizon = new Date(thisY, thisM, today.getDate() + sevenDays);
+  const upcoming = MOCK_UPCOMING.map(c => {
+    let d = new Date(thisY, thisM, c.day);
+    if (d < today) d = new Date(thisY, thisM + 1, c.day);
+    return { ...c, date: d };
+  }).filter(c => c.date <= horizon).sort((a, b) => a.date - b.date);
+  const total = upcoming.reduce((s, c) => s + c.amount, 0);
+  const DAYS = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+  return (
+    <section className="upcoming-card">
+      <div className="upcoming-head">
+        <div className="upcoming-title">Upcoming</div>
+        <div className="upcoming-meta-line">{upcoming.length} charges · next 7d</div>
+      </div>
+      <div className="upcoming-total">
+        <span className="amt">−{fmt(total, true)}</span>
+        <span className="sub">total this week</span>
+      </div>
+      <div className="upcoming-list">
+        {upcoming.length === 0 && (<div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", padding: "8px 0" }}>Nothing due in the next 7 days.</div>)}
+        {upcoming.map((c, i) => (
+          <div key={i} className="upcoming-row">
+            <div className="upcoming-day">{DAYS[c.date.getDay()]}<span className="num">{c.date.getDate()}</span></div>
+            <div className="upcoming-name">{c.name}<span className="tiny">{c.label}</span></div>
+            <div className="upcoming-amt">−{fmt(c.amount, true)}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function BuildQueueBento() {
   const [done, setDone] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("bxs-build-done") || "[]")); } catch { return new Set(); }
@@ -2699,6 +2930,80 @@ export default function App() {
         .build-desc { font-family: 'Noto Serif', serif; font-size: 12.5px; line-height: 1.45; color: var(--ink-mid); }
         .build-tag { align-self: flex-start; margin-top: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; background: var(--cream); border: 1px solid var(--cream-border); border-radius: 100px; }
         .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; }
+
+        /* Top Movers row */
+        .movers-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+        @media (max-width: 860px) { .movers-row { grid-template-columns: 1fr; } }
+        .mover-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-xl); padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+        .mover-card:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(13,11,9,0.06); }
+        .mover-row-top { display: flex; align-items: center; gap: 8px; }
+        .mover-arrow { font-size: 14px; font-weight: 700; line-height: 1; }
+        .mover-card.up .mover-arrow { color: #1F8A55; }
+        .mover-card.down .mover-arrow { color: var(--coral); }
+        .mover-card.watch .mover-arrow { color: var(--red); }
+        .mover-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
+        .mover-value { font-family: 'General Sans', 'Inter', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); margin-top: 2px; }
+        .mover-detail { font-family: 'Noto Serif', serif; font-size: 12px; color: var(--ink-mid); line-height: 1.4; }
+
+        /* Trio row: Goal | Receivables | Upcoming */
+        .duo-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
+        @media (max-width: 1200px) { .duo-row { grid-template-columns: 1fr 1fr; } .duo-row > .goal-card { grid-column: 1 / -1; } }
+        @media (max-width: 720px) { .duo-row { grid-template-columns: 1fr; } .duo-row > .goal-card { grid-column: auto; } }
+
+        /* Goal progress card (warm-dark donut) */
+        .goal-card { background: linear-gradient(160deg, #1F1A16 0%, #14100C 100%); color: white; border: 1px solid var(--warm-dark-border); border-radius: var(--r-2xl); padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden; }
+        .goal-card::before { content: ""; position: absolute; top: -40%; right: -10%; width: 60%; height: 140%; background: radial-gradient(circle, rgba(242,112,103,0.16), transparent 60%); pointer-events: none; }
+        .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; position: relative; z-index: 1; }
+        .goal-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.14em; text-transform: uppercase; }
+        .goal-period { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; }
+        .goal-body { display: flex; align-items: center; gap: 18px; flex: 1; position: relative; z-index: 1; }
+        .goal-donut { width: 150px; height: 150px; flex-shrink: 0; position: relative; }
+        .goal-donut svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+        .goal-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+        .goal-donut-pct { font-family: 'General Sans', 'Inter', sans-serif; font-size: 28px; font-weight: 600; letter-spacing: -0.026em; color: var(--coral); line-height: 1; }
+        .goal-donut-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-top: 6px; }
+        .goal-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+        .goal-actual { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.028em; color: white; line-height: 1; }
+        .goal-target { font-family: 'Inter', sans-serif; font-size: 12.5px; color: rgba(255,255,255,0.55); letter-spacing: -0.005em; }
+        .goal-target b { color: white; font-weight: 600; }
+        .goal-foot { display: flex; flex-direction: column; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; position: relative; z-index: 1; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .goal-foot .pct { color: var(--coral); font-weight: 700; }
+
+        /* Receivables card */
+        .recv-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-2xl); padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; }
+        .recv-head { display: flex; align-items: baseline; justify-content: space-between; }
+        .recv-title { font-family: 'General Sans', 'Inter', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.012em; color: var(--ink); }
+        .recv-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
+        .recv-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .recv-stat { background: var(--cream); border: 1px solid var(--cream-border); border-radius: var(--r-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+        .recv-stat .label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
+        .recv-stat .value { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.022em; color: var(--ink); line-height: 1; }
+        .recv-stat.overdue .value { color: var(--red); }
+        .recv-stat .sub { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--ink-light); }
+        .recv-list { display: flex; flex-direction: column; gap: 4px; }
+        .recv-invoice { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; transition: background 0.15s; }
+        .recv-invoice:hover { background: var(--cream); }
+        .recv-invoice .name { flex: 1; font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
+        .recv-invoice .age { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--ink-faint); padding: 3px 8px; background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: 100px; letter-spacing: 0.08em; }
+        .recv-invoice.overdue .age { color: var(--red); border-color: rgba(225,53,64,0.3); background: rgba(225,53,64,0.06); }
+        .recv-invoice .amt { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--ink); }
+
+        /* Upcoming charges */
+        .upcoming-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-2xl); padding: 22px 22px 16px; display: flex; flex-direction: column; gap: 12px; }
+        .upcoming-head { display: flex; align-items: baseline; justify-content: space-between; }
+        .upcoming-title { font-family: 'General Sans', 'Inter', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.012em; color: var(--ink); }
+        .upcoming-meta-line { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
+        .upcoming-total { display: flex; align-items: baseline; gap: 8px; padding: 6px 0 4px; border-bottom: 1px solid var(--cream-border); margin-bottom: 2px; }
+        .upcoming-total .amt { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.022em; color: var(--ink); line-height: 1; }
+        .upcoming-total .sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
+        .upcoming-list { display: flex; flex-direction: column; }
+        .upcoming-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--cream-border); }
+        .upcoming-row:last-child { border-bottom: none; }
+        .upcoming-day { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.1; }
+        .upcoming-day .num { display: block; font-family: 'General Sans', 'Inter', sans-serif; font-size: 16px; font-weight: 600; color: var(--ink); letter-spacing: -0.018em; }
+        .upcoming-name { font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .upcoming-name .tiny { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 1px; }
+        .upcoming-amt { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--red); text-align: right; white-space: nowrap; }
         .donut-container { width: 200px; height: 200px; }
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
