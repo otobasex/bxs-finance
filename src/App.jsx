@@ -3098,12 +3098,12 @@ export default function App() {
         .goal-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
         .goal-period { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; white-space: nowrap; }
         .goal-head { flex-wrap: wrap; row-gap: 8px; }
-        .goal-body { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: 1; position: relative; z-index: 1; padding: 6px 0 4px; }
-        .goal-donut { width: 160px; height: 160px; flex-shrink: 0; position: relative; }
+        .goal-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; flex: 1; position: relative; z-index: 1; padding: 12px 0; }
+        .goal-donut { width: 220px; height: 220px; flex-shrink: 0; position: relative; }
         .goal-donut svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
         .goal-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
-        .goal-donut-pct { font-family: 'General Sans', 'Inter', sans-serif; font-size: 28px; font-weight: 600; letter-spacing: -0.026em; color: var(--coral); line-height: 1; }
-        .goal-donut-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-top: 6px; }
+        .goal-donut-pct { font-family: 'General Sans', 'Inter', sans-serif; font-size: 40px; font-weight: 600; letter-spacing: -0.028em; color: var(--coral); line-height: 1; }
+        .goal-donut-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-top: 8px; }
         .goal-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
         .goal-actual { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.028em; color: white; line-height: 1; }
         .goal-target { font-family: 'Inter', sans-serif; font-size: 12.5px; color: rgba(255,255,255,0.55); letter-spacing: -0.005em; }
