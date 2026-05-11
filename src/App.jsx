@@ -2942,7 +2942,7 @@ export default function App() {
         .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--cream-border); margin-bottom: 20px; }
         .section-head-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
         .section-head-left h3 { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); line-height: 1.2; margin: 0; }
-        .section-head-left .sub { font-family: 'Noto Serif', serif; font-size: 13.5px; color: var(--ink-mid); line-height: 1.5; margin: 0; }
+        .section-head-left .sub { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--ink-mid); line-height: 1.5; letter-spacing: -0.005em; margin: 0; }
         .section-head-right { flex-shrink: 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .section-head-right.stack { flex-direction: column; align-items: flex-end; gap: 8px; flex-wrap: nowrap; }
         .ai-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 100px; background: var(--cream); border: 1px solid var(--cream-border-strong); color: var(--ink-mid); font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: -0.005em; cursor: pointer; transition: all 0.2s; }
@@ -2972,16 +2972,16 @@ export default function App() {
         .build-check svg { width: 12px; height: 12px; stroke-width: 3; }
         .build-num { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--red); letter-spacing: 0.05em; }
         .build-title { font-family: 'General Sans', 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; letter-spacing: -0.012em; color: var(--ink); padding-right: 32px; }
-        .build-desc { font-family: 'Noto Serif', serif; font-size: 12.5px; line-height: 1.45; color: var(--ink-mid); }
+        .build-desc { font-family: 'Inter', sans-serif; font-size: 12.5px; line-height: 1.45; color: var(--ink-mid); letter-spacing: -0.005em; }
         .build-tag { align-self: flex-start; margin-top: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; background: var(--cream); border: 1px solid var(--cream-border); border-radius: 100px; }
         .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; }
 
         /* Top Movers row */
         .movers-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
         @media (max-width: 860px) { .movers-row { grid-template-columns: 1fr; } }
-        .mover-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-xl); padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+        .mover-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-xl); padding: 26px 20px 18px; display: flex; flex-direction: column; gap: 4px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
         .mover-card:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(13,11,9,0.06); }
-        .mover-icon { position: absolute; top: 14px; right: 16px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .mover-icon { position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .mover-icon svg { width: 14px; height: 14px; stroke-width: 2.4; }
         .mover-card.up .mover-icon { color: #1F8A55; background: rgba(31,138,85,0.1); }
         .mover-card.down .mover-icon { color: var(--coral); background: rgba(242,112,103,0.12); }
@@ -2989,7 +2989,7 @@ export default function App() {
         .mover-card .mover-label { padding-right: 36px; }
         .mover-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
         .mover-value { font-family: 'General Sans', 'Inter', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); margin-top: 2px; }
-        .mover-detail { font-family: 'Noto Serif', serif; font-size: 12px; color: var(--ink-mid); line-height: 1.4; }
+        .mover-detail { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink-mid); line-height: 1.45; letter-spacing: -0.005em; }
 
         /* Trio row: Goal | Receivables | Upcoming */
         .duo-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
