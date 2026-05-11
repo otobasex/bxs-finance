@@ -2979,9 +2979,9 @@ export default function App() {
         /* Top Movers row */
         .movers-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
         @media (max-width: 860px) { .movers-row { grid-template-columns: 1fr; } }
-        .mover-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-xl); padding: 26px 20px 18px; display: flex; flex-direction: column; gap: 4px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+        .mover-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-xl); padding: 56px 22px 20px; display: flex; flex-direction: column; gap: 6px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
         .mover-card:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(13,11,9,0.06); }
-        .mover-icon { position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .mover-icon { position: absolute; top: 18px; right: 18px; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .mover-icon svg { width: 14px; height: 14px; stroke-width: 2.4; }
         .mover-card.up .mover-icon { color: #1F8A55; background: rgba(31,138,85,0.1); }
         .mover-card.down .mover-icon { color: var(--coral); background: rgba(242,112,103,0.12); }
