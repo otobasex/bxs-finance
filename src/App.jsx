@@ -2494,13 +2494,13 @@ function GoalCard({ allTransactions }) {
     return { actual, count, label: `${ALL_MONTHS[tm]} ${ty}` };
   }, [allTransactions, offset]);
 
-  const pct = Math.min(100, (page.actual / GOAL_MONTHLY) * 100);
+  const pct = (page.actual / GOAL_MONTHLY) * 100; // uncapped — can read 120%, 150%, etc.
   const delta = page.actual - GOAL_MONTHLY;
   const hitTarget = delta >= 0;
 
   const radius = 60;
   const circ = 2 * Math.PI * radius;
-  const dash = (pct / 100) * circ;
+  const dash = Math.min(100, pct) / 100 * circ; // arc geometry capped at full circle
 
   const canOlder = offset < GOAL_PAGES - 1;
   const canNewer = offset > 0;
@@ -2529,10 +2529,10 @@ function GoalCard({ allTransactions }) {
               </linearGradient>
             </defs>
             <circle cx="75" cy="75" r={radius} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="10"/>
-            <circle cx="75" cy="75" r={radius} fill="none" stroke="url(#goal-grad)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${dash} ${circ - dash}`} style={{ transition: "stroke-dasharray 0.4s ease" }}/>
+            <circle cx="75" cy="75" r={radius} fill="none" stroke={hitTarget ? "#7DD4A2" : "url(#goal-grad)"} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${dash} ${circ - dash}`} style={{ transition: "stroke-dasharray 0.4s ease, stroke 0.3s ease" }}/>
           </svg>
           <div className="goal-donut-center">
-            <div className="goal-donut-pct">{pct.toFixed(1)}%</div>
+            <div className="goal-donut-pct" style={{ color: hitTarget ? "#7DD4A2" : "var(--coral)" }}>{pct.toFixed(1)}%</div>
             <div className="goal-donut-label">of target</div>
           </div>
         </div>
@@ -2543,7 +2543,7 @@ function GoalCard({ allTransactions }) {
       </div>
       <div className="goal-foot">
         <span>{page.count} credit{page.count === 1 ? "" : "s"} in {page.label}</span>
-        <span>{hitTarget ? "Surplus" : "Short"} by <span className="pct">{fmt(Math.abs(delta), true)}</span></span>
+        <span>{hitTarget ? "Surplus" : "Short"} by <span className="pct" style={hitTarget ? { color: "#7DD4A2" } : undefined}>{fmt(Math.abs(delta), true)}</span></span>
       </div>
       <div className="goal-dots">
         {Array.from({ length: GOAL_PAGES }, (_, i) => (
