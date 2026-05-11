@@ -126,10 +126,38 @@ function categoriseFallback(description, isCredit, catNames) {
 }
 
 /* ─── AI CATEGORISER ─── */
-async function categoriseWithAI(transactions, catNames) {
+// Normalize a tx description to a stable "merchant signature" so similar
+// descriptions across statements match (POS Purchase Mr D Food 23 Apr ≈ POS
+// Purchase Mr D Food 24 May).
+function normalizeDesc(d) {
+  return (d || "").toLowerCase().replace(/\d+/g, " ").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+function descSignature(d) {
+  const norm = normalizeDesc(d);
+  const words = norm.split(" ").filter(w => w.length > 1);
+  return words.slice(0, 4).join(" "); // first 4 meaningful words
+}
+
+async function categoriseWithAI(transactions, catNames, manualExamples = []) {
   const toClassify = transactions.filter(t => !t.isCredit);
   if (!toClassify.length) return transactions;
   const validCats = catNames.filter(c => c !== "Income");
+
+  // Few-shot: include user's existing manual corrections so Claude follows the same patterns.
+  // Deduped by description signature, capped to keep prompt tokens reasonable.
+  const seenSigs = new Set();
+  const dedupedExamples = [];
+  for (const ex of manualExamples) {
+    const sig = descSignature(ex.description);
+    if (!sig || seenSigs.has(sig)) continue;
+    seenSigs.add(sig);
+    dedupedExamples.push(ex);
+    if (dedupedExamples.length >= 30) break;
+  }
+  const exampleBlock = dedupedExamples.length
+    ? `\nThe user has already manually corrected these — follow the same patterns when similar descriptions appear:\n${dedupedExamples.map(e => `- "${e.description}" → ${e.category}`).join("\n")}\n`
+    : "";
+
   const prompt = `You are a South African bank statement categoriser. Categorise each transaction into exactly one of these categories: ${validCats.join(", ")}
 Rules:
 - "Transfers Out" = personal transfers to own/other accounts
@@ -144,7 +172,7 @@ Rules:
 - "Bank Fees" = bank charges, service fees, monthly account fee
 - "Business" = business expenses, software, hosting, contractors
 - "Other" = anything that doesn't fit above
-Return ONLY a JSON array with "id" and "category" fields. No markdown, no explanation.
+${exampleBlock}Return ONLY a JSON array with "id" and "category" fields. No markdown, no explanation.
 Transactions:
 ${toClassify.map(t => `{"id":${t.id},"desc":"${t.description}","amount":${t.amount}}`).join("\n")}`;
   const response = await fetch("/api/claude", {
@@ -1789,14 +1817,22 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
   const handleAICategorise = async () => {
     setAiLoading(true); setAiStatus(null);
     try {
-      // In statement mode: categorise the active statement only
-      // In calendar mode: categorise all statements (all visible transactions may span many)
       const targetStmts = navMode === "statement"
         ? [statements[activeStmt] || statements[0]].filter(Boolean)
         : statements;
 
+      // Collect manual corrections from ALL statements as few-shot examples for Claude
+      const manualExamples = [];
+      for (const s of statements) {
+        for (const t of s.transactions) {
+          if (t.manualCategory && !t.isCredit) {
+            manualExamples.push({ description: t.description, category: t.manualCategory });
+          }
+        }
+      }
+
       for (const stmt of targetStmts) {
-        const updated = await categoriseWithAI(stmt.transactions, catNames);
+        const updated = await categoriseWithAI(stmt.transactions, catNames, manualExamples);
         for (const t of updated) {
           await supabase.from("transactions")
             .update({ category: t.category, ai_categorised: t.aiCategorised })
@@ -1812,7 +1848,43 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
     if (!pickerTx) return;
     const stmtId = statements.find(s => s.transactions.some(t => t.id === pickerTx.id))?.id;
     if (stmtId) await supabase.from("transactions").update({ manual_category: cat }).eq("statement_id", stmtId).eq("local_id", pickerTx.id);
-    setStatements(prev => prev.map(s => ({ ...s, transactions: s.transactions.map(t => t.id === pickerTx.id ? { ...t, manualCategory: cat } : t) })));
+
+    // Auto-apply: find other un-manually-edited debits with the same description signature
+    // and tag them with the same category. Preserves existing manual edits.
+    const sig = descSignature(pickerTx.description);
+    const matchesByStmt = {};
+    let matchCount = 0;
+    if (sig) {
+      for (const s of statements) {
+        for (const t of s.transactions) {
+          if (t.id === pickerTx.id && s.id === stmtId) continue;
+          if (t.isCredit) continue;
+          if (t.manualCategory) continue; // never overwrite an existing manual edit
+          if (descSignature(t.description) !== sig) continue;
+          (matchesByStmt[s.id] = matchesByStmt[s.id] || []).push(t.id);
+          matchCount++;
+        }
+      }
+      // Persist matches in Supabase, statement by statement
+      for (const [sId, ids] of Object.entries(matchesByStmt)) {
+        await supabase.from("transactions").update({ manual_category: cat }).eq("statement_id", sId).in("local_id", ids);
+      }
+    }
+
+    // Update local state for the picked tx + any auto-applied matches
+    setStatements(prev => prev.map(s => ({
+      ...s,
+      transactions: s.transactions.map(t => {
+        if (t.id === pickerTx.id && s.id === stmtId) return { ...t, manualCategory: cat };
+        if ((matchesByStmt[s.id] || []).includes(t.id)) return { ...t, manualCategory: cat };
+        return t;
+      })
+    })));
+
+    if (matchCount > 0) {
+      setAiStatus({ kind: "auto-apply", count: matchCount, cat, sig });
+      setTimeout(() => setAiStatus(s => (s && s.kind === "auto-apply" ? null : s)), 5000);
+    }
     setPickerTx(null);
   };
 
@@ -1913,14 +1985,23 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
 
       {statements.length > 0 && <>
         {/* AI Status */}
-        {(aiLoading || aiStatus) && (
-          <div style={{ marginBottom: 12, padding: "10px 18px", borderRadius: 10, background: aiLoading ? "rgba(99,102,241,0.08)" : aiStatus === "done" ? "rgba(20,184,166,0.08)" : "rgba(227,26,81,0.08)", border: `1px solid ${aiLoading ? "rgba(99,102,241,0.2)" : aiStatus === "done" ? "rgba(20,184,166,0.2)" : "rgba(227,26,81,0.2)"}`, display: "flex", alignItems: "center", gap: 10 }}>
-            {aiLoading && <div className="ai-spinner" />}
-            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: aiLoading ? "#6366f1" : aiStatus === "done" ? "#14b8a6" : "#E31A51" }}>
-              {aiLoading ? "Claude is categorising your transactions…" : aiStatus === "done" ? `✓ AI categorised ${aiCount} transactions${manualCount > 0 ? ` · ${manualCount} manually overridden` : ""}` : "⚠ AI categorisation failed — using keyword matching"}
-            </span>
-          </div>
-        )}
+        {(aiLoading || aiStatus) && (() => {
+          const isAuto = aiStatus && typeof aiStatus === "object" && aiStatus.kind === "auto-apply";
+          const tone = aiLoading ? "info" : (aiStatus === "done" || isAuto) ? "good" : "bad";
+          const bg   = tone === "info" ? "rgba(99,102,241,0.08)" : tone === "good" ? "rgba(20,184,166,0.08)" : "rgba(227,26,81,0.08)";
+          const bdr  = tone === "info" ? "rgba(99,102,241,0.2)"  : tone === "good" ? "rgba(20,184,166,0.2)"  : "rgba(227,26,81,0.2)";
+          const fg   = tone === "info" ? "#6366f1" : tone === "good" ? "#14b8a6" : "#E31A51";
+          const msg  = aiLoading ? "Claude is categorising your transactions…"
+            : isAuto ? `✓ Also tagged ${aiStatus.count} similar transaction${aiStatus.count === 1 ? "" : "s"} as ${aiStatus.cat}.`
+            : aiStatus === "done" ? `✓ AI categorised ${aiCount} transactions${manualCount > 0 ? ` · ${manualCount} manually overridden` : ""}`
+            : "⚠ AI categorisation failed — using keyword matching";
+          return (
+            <div style={{ marginBottom: 12, padding: "10px 18px", borderRadius: 10, background: bg, border: `1px solid ${bdr}`, display: "flex", alignItems: "center", gap: 10 }}>
+              {aiLoading && <div className="ai-spinner" />}
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: fg }}>{msg}</span>
+            </div>
+          );
+        })()}
 
         {/* KPI CARDS — animate on change */}
         <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${period.type}-${period.anchor?.getTime?.() ?? period.from ?? ''}-${activeStmt}`}>
