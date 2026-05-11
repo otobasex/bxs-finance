@@ -2451,7 +2451,10 @@ function TopMoversRow({ allTransactions }) {
   return (
     <div className="movers-row fade-up" style={{ animationDelay: "0.07s" }}>
       <div className="mover-card up">
-        <div className="mover-row-top"><span className="mover-arrow">↗</span><span className="mover-label">Top spike · {movers.lastLabel}</span></div>
+        <div className="mover-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </div>
+        <div className="mover-label">Top spike · {movers.lastLabel}</div>
         {movers.spike ? (
           <>
             <div className="mover-value">{movers.spike.cat} +{movers.spike.pct.toFixed(0)}%</div>
@@ -2460,7 +2463,10 @@ function TopMoversRow({ allTransactions }) {
         ) : (<div className="mover-detail">No category increase vs {movers.prevLabel}.</div>)}
       </div>
       <div className="mover-card down">
-        <div className="mover-row-top"><span className="mover-arrow">↘</span><span className="mover-label">Top drop · {movers.lastLabel}</span></div>
+        <div className="mover-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        </div>
+        <div className="mover-label">Top drop · {movers.lastLabel}</div>
         {movers.drop ? (
           <>
             <div className="mover-value">{movers.drop.cat} {movers.drop.pct.toFixed(0)}%</div>
@@ -2469,7 +2475,10 @@ function TopMoversRow({ allTransactions }) {
         ) : (<div className="mover-detail">No category decrease vs {movers.prevLabel}.</div>)}
       </div>
       <div className="mover-card watch">
-        <div className="mover-row-top"><span className="mover-arrow">⚠</span><span className="mover-label">Watch · {movers.lastLabel}</span></div>
+        <div className="mover-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div className="mover-label">Watch · {movers.lastLabel}</div>
         <div className="mover-value">Other {movers.otherPct.toFixed(0)}% of spend</div>
         <div className="mover-detail">{movers.otherCount} transactions likely miscategorised.</div>
       </div>
@@ -2972,11 +2981,12 @@ export default function App() {
         @media (max-width: 860px) { .movers-row { grid-template-columns: 1fr; } }
         .mover-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-xl); padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
         .mover-card:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(13,11,9,0.06); }
-        .mover-row-top { display: flex; align-items: center; gap: 8px; }
-        .mover-arrow { font-size: 14px; font-weight: 700; line-height: 1; }
-        .mover-card.up .mover-arrow { color: #1F8A55; }
-        .mover-card.down .mover-arrow { color: var(--coral); }
-        .mover-card.watch .mover-arrow { color: var(--red); }
+        .mover-icon { position: absolute; top: 14px; right: 16px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .mover-icon svg { width: 14px; height: 14px; stroke-width: 2.4; }
+        .mover-card.up .mover-icon { color: #1F8A55; background: rgba(31,138,85,0.1); }
+        .mover-card.down .mover-icon { color: var(--coral); background: rgba(242,112,103,0.12); }
+        .mover-card.watch .mover-icon { color: var(--red); background: rgba(225,53,64,0.1); }
+        .mover-card .mover-label { padding-right: 36px; }
         .mover-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
         .mover-value { font-family: 'General Sans', 'Inter', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); margin-top: 2px; }
         .mover-detail { font-family: 'Noto Serif', serif; font-size: 12px; color: var(--ink-mid); line-height: 1.4; }
