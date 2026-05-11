@@ -849,12 +849,12 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
                 fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 9, fontWeight: isSelected ? 700 : 500,
                 color: monthLbl(isSelected, isEmpty),
-                letterSpacing: "0.12em", textTransform: "uppercase",
+                letterSpacing: "0.08em", textTransform: "uppercase",
                 transition: "color 0.2s",
                 paddingTop: 8,
                 whiteSpace: "nowrap",
               }}>
-                {ALL_MONTHS[m.month].slice(0,3)}
+                {ALL_MONTHS[m.month].slice(0,3)} {String(m.year).slice(-2)}
               </div>
             </div>
           );
@@ -1965,10 +1965,11 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           setPeriod={(p) => { setPeriod(p); setActiveCategory(null); setSearch(""); }}
           onOpenCustom={() => setShowCustomRange(true)}
         />
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase", paddingLeft: 4 }}>
-          {accountLabel ? <><span style={{ color: "var(--ink-mid)", fontWeight: 600 }}>{accountLabel}</span><span style={{ margin: "0 8px", opacity: 0.4 }}>·</span></> : null}
-          {contextLabel}
-        </div>
+        {accountLabel && (
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: "var(--ink-mid)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", paddingLeft: 4 }}>
+            {accountLabel}
+          </div>
+        )}
         <div className="goal-pill" style={{ marginLeft: "auto" }}>
           <span className="goal-label">Goal:</span>
           <span>A systems-driven business grossing <span className="goal-amount">R200k/month</span>.</span>
