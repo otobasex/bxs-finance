@@ -2064,16 +2064,6 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           </div>
         </div>
 
-        {/* ── TOP MOVERS ── */}
-        <TopMoversRow allTransactions={allTransactions} />
-
-        {/* ── GOAL / RECEIVABLES / UPCOMING TRIO ── */}
-        <div className="duo-row fade-up" style={{ animationDelay: "0.09s" }}>
-          <GoalCard allTransactions={allTransactions} />
-          <ReceivablesCard />
-          <UpcomingCard />
-        </div>
-
         {/* ── YEAR OVERVIEW CHART ── */}
         <YearChart
           allTransactions={allTransactions}
@@ -2084,6 +2074,16 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           mode={chartMode}
           dark={dark}
         />
+
+        {/* ── TOP MOVERS ── */}
+        <TopMoversRow allTransactions={allTransactions} />
+
+        {/* ── GOAL / RECEIVABLES / UPCOMING TRIO ── */}
+        <div className="duo-row fade-up" style={{ animationDelay: "0.09s" }}>
+          <GoalCard allTransactions={allTransactions} />
+          <ReceivablesCard />
+          <UpcomingCard />
+        </div>
 
         {/* ── DAILY CHART — for narrow periods where day-detail is useful ── */}
         {transactions.length > 0 && (period.type === 'month' || period.type === 'custom' || period.type === 'statement') && (
