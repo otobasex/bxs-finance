@@ -80,6 +80,11 @@ function getFYMonths(startYear) {
   });
 }
 
+// Jan–Dec of a given calendar year
+function getCYMonths(year) {
+  return ALL_MONTHS.map((mn, monthIdx) => ({ month: monthIdx, year, label: `${mn} ${year}` }));
+}
+
 // All FY start years present in data, plus current FY, newest first
 function getAllFYStartYears(allTransactions) {
   const current = currentFYStartYear();
@@ -92,6 +97,13 @@ function getAllFYStartYears(allTransactions) {
     })
   );
   fromTxs.add(current);
+  return [...fromTxs].sort((a, b) => b - a);
+}
+
+// All calendar years present in data, plus current CY, newest first
+function getAllCYYears(allTransactions) {
+  const fromTxs = new Set(allTransactions.map(t => new Date(t.date).getFullYear()));
+  fromTxs.add(new Date().getFullYear());
   return [...fromTxs].sort((a, b) => b - a);
 }
 
@@ -653,26 +665,32 @@ function StatementChart({ transactions, dark }) {
 }
 
 /* ─── YEAR CHART ─── */
-function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear, onFYChange, dark }) {
+function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear, onFYChange, dark, mode = 'fy' }) {
   const [tooltip, setTooltip] = useState(null);
-  // Use shared FY year from parent if provided, otherwise manage internally
-  const [localFYYear, setLocalFYYear] = useState(() => sharedFYYear ?? currentFYStartYear());
-  const fyStartYear = sharedFYYear ?? localFYYear;
-  const setFyStartYear = (y) => { setLocalFYYear(y); onFYChange?.(y); };
+  // Use shared year from parent if provided, otherwise manage internally
+  const [localYear, setLocalYear] = useState(() => sharedFYYear ?? currentFYStartYear());
+  const yearAnchor = sharedFYYear ?? localYear;
+  const setYearAnchor = (y) => { setLocalYear(y); onFYChange?.(y); };
 
-  const fyYears = useMemo(() => getAllFYStartYears(allTransactions), [allTransactions]);
-  const fyMonths = useMemo(() => getFYMonths(fyStartYear), [fyStartYear]);
+  const yearList = useMemo(
+    () => mode === 'cy' ? getAllCYYears(allTransactions) : getAllFYStartYears(allTransactions),
+    [allTransactions, mode]
+  );
+  const fyMonths = useMemo(
+    () => mode === 'cy' ? getCYMonths(yearAnchor) : getFYMonths(yearAnchor),
+    [yearAnchor, mode]
+  );
 
-  const canGoBack = fyYears.some(y => y < fyStartYear);
-  const canGoFwd  = fyYears.some(y => y > fyStartYear);
+  const canGoBack = yearList.some(y => y < yearAnchor);
+  const canGoFwd  = yearList.some(y => y > yearAnchor);
 
   const prevFY = () => {
-    const older = fyYears.filter(y => y < fyStartYear);
-    if (older.length) { setFyStartYear(Math.max(...older)); onSelectMonth(null); }
+    const older = yearList.filter(y => y < yearAnchor);
+    if (older.length) { setYearAnchor(Math.max(...older)); onSelectMonth(null); }
   };
   const nextFY = () => {
-    const newer = fyYears.filter(y => y > fyStartYear);
-    if (newer.length) { setFyStartYear(Math.min(...newer)); onSelectMonth(null); }
+    const newer = yearList.filter(y => y > yearAnchor);
+    if (newer.length) { setYearAnchor(Math.min(...newer)); onSelectMonth(null); }
   };
 
   const monthData = useMemo(() => {
@@ -727,7 +745,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
               <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill={arrowFill}/></svg>
             </button>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: fyColor }}>
-              FY {fyStartYear}/{fyStartYear + 1}
+              {mode === 'cy' ? `CY ${yearAnchor}` : `FY ${yearAnchor}/${yearAnchor + 1}`}
             </div>
             <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoFwd ? 1 : 0.2, transition: "opacity 0.15s" }}>
               <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill={arrowFill}/></svg>
@@ -1527,10 +1545,10 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     return { from: period.from, to: period.to };
   }, [period]);
 
-  /* Which FY the YearChart should display, derived from period. */
+  /* YearChart display: which year and which mode (FY months Mar-Feb vs CY Jan-Dec). */
+  const chartMode = period.type === 'cy' ? 'cy' : 'fy';
   const displayedFY = useMemo(() => {
     if (period.type === 'statement') {
-      // Use the FY containing the active statement's earliest tx, fallback to current FY
       const stmt = statements[activeStmt] || statements[0];
       const firstTx = stmt?.transactions?.[0];
       if (firstTx) {
@@ -1546,7 +1564,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
       return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1;
     }
     const a = period.anchor instanceof Date ? period.anchor : new Date(period.anchor);
-    if (period.type === 'cy') return a.getFullYear(); // CY 2024 → show FY starting in 2024
+    if (period.type === 'cy') return a.getFullYear();
     // fy or month
     return a.getMonth() >= 2 ? a.getFullYear() : a.getFullYear() - 1;
   }, [period, statements, activeStmt]);
@@ -1880,9 +1898,10 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <YearChart
           allTransactions={allTransactions}
           selectedMonth={selectedMonth}
-          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: 'fy', anchor: new Date(displayedFY, 6, 1) }); setActiveCategory(null); setSearch(""); }}
+          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: chartMode, anchor: new Date(displayedFY, chartMode === 'cy' ? 6 : 6, 1) }); setActiveCategory(null); setSearch(""); }}
           sharedFYYear={displayedFY}
-          onFYChange={(y) => setPeriod({ type: 'fy', anchor: new Date(y, 6, 1) })}
+          onFYChange={(y) => setPeriod({ type: chartMode, anchor: new Date(y, 6, 1) })}
+          mode={chartMode}
           dark={dark}
         />
       )}
