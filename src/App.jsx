@@ -1980,7 +1980,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
         </div>
 
         {/* ── TOP MOVERS ── */}
-        <TopMoversRow allTransactions={allTransactions} monthlyIncome={monthlyIncome} />
+        <TopMoversRow allTransactions={allTransactions} />
 
         {/* ── GOAL / RECEIVABLES / UPCOMING TRIO ── */}
         <div className="duo-row fade-up" style={{ animationDelay: "0.09s" }}>
@@ -2397,72 +2397,75 @@ const BUILD_QUEUE_ITEMS = [
 ];
 
 /* ─── TOP MOVERS ROW ─── */
-function TopMoversRow({ allTransactions, monthlyIncome }) {
+// Statements are only imported after a month closes, so compare the most recently
+// completed month ("last") with the month before that ("prev").
+function TopMoversRow({ allTransactions }) {
   const movers = useMemo(() => {
     const now = new Date();
-    const thisM = now.getMonth(), thisY = now.getFullYear();
-    const last = new Date(thisY, thisM - 1, 1);
+    const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastM = last.getMonth(), lastY = last.getFullYear();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const prevM = prev.getMonth(), prevY = prev.getFullYear();
 
-    const thisCat = {}, lastCat = {};
-    let thisOther = 0, thisTotal = 0, thisOtherCount = 0;
+    const lastCat = {}, prevCat = {};
+    let lastOther = 0, lastTotal = 0, lastOtherCount = 0;
     for (const t of allTransactions) {
       if (t.isCredit) continue;
       const d = t.date instanceof Date ? t.date : new Date(t.date);
       const m = d.getMonth(), y = d.getFullYear();
       const cat = t.manualCategory || t.category;
-      if (m === thisM && y === thisY) {
-        thisCat[cat] = (thisCat[cat] || 0) + t.amount;
-        thisTotal += t.amount;
-        if (cat === "Other") { thisOther += t.amount; thisOtherCount++; }
-      } else if (m === lastM && y === lastY) {
+      if (m === lastM && y === lastY) {
         lastCat[cat] = (lastCat[cat] || 0) + t.amount;
+        lastTotal += t.amount;
+        if (cat === "Other") { lastOther += t.amount; lastOtherCount++; }
+      } else if (m === prevM && y === prevY) {
+        prevCat[cat] = (prevCat[cat] || 0) + t.amount;
       }
     }
 
     const deltas = [];
-    const cats = new Set([...Object.keys(thisCat), ...Object.keys(lastCat)]);
+    const cats = new Set([...Object.keys(lastCat), ...Object.keys(prevCat)]);
     for (const cat of cats) {
       if (cat === "Income") continue;
-      const a = thisCat[cat] || 0;
-      const b = lastCat[cat] || 0;
+      const a = lastCat[cat] || 0;
+      const b = prevCat[cat] || 0;
       if (Math.max(a, b) < 100) continue; // noise floor
       const pct = b > 0 ? ((a - b) / b) * 100 : (a > 0 ? 999 : 0);
-      deltas.push({ cat, thisAmount: a, lastAmount: b, pct, abs: Math.abs(a - b) });
+      deltas.push({ cat, lastAmount: a, prevAmount: b, pct });
     }
 
-    const spike = deltas.filter(d => d.pct > 0 && d.lastAmount > 0).sort((x, y) => y.pct - x.pct)[0];
+    const spike = deltas.filter(d => d.pct > 0 && d.prevAmount > 0).sort((x, y) => y.pct - x.pct)[0];
     const drop  = deltas.filter(d => d.pct < 0).sort((x, y) => x.pct - y.pct)[0];
+    const otherPct = lastTotal > 0 ? (lastOther / lastTotal) * 100 : 0;
 
-    const otherPct = thisTotal > 0 ? (thisOther / thisTotal) * 100 : 0;
-    return { spike, drop, otherPct, otherCount: thisOtherCount, thisLabel: monthlyIncome.thisLabel, lastLabel: monthlyIncome.lastLabel };
-  }, [allTransactions, monthlyIncome.thisLabel, monthlyIncome.lastLabel]);
+    const fmtMon = (d) => `${ALL_MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+    return { spike, drop, otherPct, otherCount: lastOtherCount, lastLabel: fmtMon(last), prevLabel: fmtMon(prev) };
+  }, [allTransactions]);
 
-  // If we have no data at all, render nothing
   if (!movers.spike && !movers.drop && movers.otherCount === 0) return null;
 
   return (
     <div className="movers-row fade-up" style={{ animationDelay: "0.07s" }}>
       <div className="mover-card up">
-        <div className="mover-row-top"><span className="mover-arrow">↗</span><span className="mover-label">Top spike</span></div>
+        <div className="mover-row-top"><span className="mover-arrow">↗</span><span className="mover-label">Top spike · {movers.lastLabel}</span></div>
         {movers.spike ? (
           <>
             <div className="mover-value">{movers.spike.cat} +{movers.spike.pct.toFixed(0)}%</div>
-            <div className="mover-detail">{fmt(movers.spike.thisAmount, true)} this month · vs {movers.lastLabel} {fmt(movers.spike.lastAmount, true)}.</div>
+            <div className="mover-detail">{fmt(movers.spike.lastAmount, true)} in {movers.lastLabel} · vs {movers.prevLabel} {fmt(movers.spike.prevAmount, true)}.</div>
           </>
-        ) : (<div className="mover-detail">No category increase vs last month.</div>)}
+        ) : (<div className="mover-detail">No category increase vs {movers.prevLabel}.</div>)}
       </div>
       <div className="mover-card down">
-        <div className="mover-row-top"><span className="mover-arrow">↘</span><span className="mover-label">Top drop</span></div>
+        <div className="mover-row-top"><span className="mover-arrow">↘</span><span className="mover-label">Top drop · {movers.lastLabel}</span></div>
         {movers.drop ? (
           <>
             <div className="mover-value">{movers.drop.cat} {movers.drop.pct.toFixed(0)}%</div>
-            <div className="mover-detail">{fmt(movers.drop.thisAmount, true)} this month · vs {movers.lastLabel} {fmt(movers.drop.lastAmount, true)}.</div>
+            <div className="mover-detail">{fmt(movers.drop.lastAmount, true)} in {movers.lastLabel} · vs {movers.prevLabel} {fmt(movers.drop.prevAmount, true)}.</div>
           </>
-        ) : (<div className="mover-detail">No category decrease vs last month.</div>)}
+        ) : (<div className="mover-detail">No category decrease vs {movers.prevLabel}.</div>)}
       </div>
       <div className="mover-card watch">
-        <div className="mover-row-top"><span className="mover-arrow">⚠</span><span className="mover-label">Watch</span></div>
+        <div className="mover-row-top"><span className="mover-arrow">⚠</span><span className="mover-label">Watch · {movers.lastLabel}</span></div>
         <div className="mover-value">Other {movers.otherPct.toFixed(0)}% of spend</div>
         <div className="mover-detail">{movers.otherCount} transactions likely miscategorised.</div>
       </div>
