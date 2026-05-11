@@ -1306,7 +1306,7 @@ function PeriodControl({ period, setPeriod, onOpenCustom }) {
 }
 
 /* ─── DASHBOARD PANEL ─── */
-function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
+function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLabel }) {
   const [statements, setStatements]     = useState([]);
   const [activeStmt, setActiveStmt]     = useState(0);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -1889,7 +1889,10 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           setPeriod={(p) => { setPeriod(p); setActiveCategory(null); setSearch(""); }}
           onOpenCustom={() => setShowCustomRange(true)}
         />
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase", paddingLeft: 4 }}>{contextLabel}</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase", paddingLeft: 4 }}>
+          {accountLabel ? <><span style={{ color: "var(--ink-mid)", fontWeight: 600 }}>{accountLabel}</span><span style={{ margin: "0 8px", opacity: 0.4 }}>·</span></> : null}
+          {contextLabel}
+        </div>
         <div className="goal-pill" style={{ marginLeft: "auto" }}>
           <span className="goal-label">Goal:</span>
           <span>A systems-driven business grossing <span className="goal-amount">R200k/month</span>.</span>
@@ -2003,26 +2006,6 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
 
         {/* KPI CARDS — animate on change */}
         <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${period.type}-${period.anchor?.getTime?.() ?? period.from ?? ''}-${activeStmt}`}>
-          <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
-            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
-          </div>
-          <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
-            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
-          </div>
-          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 22px 18px", background: netPositive ? "var(--warm-dark)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
-            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
-              <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
-              </div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend</div>
-            </div>
-          </div>
           {/* THIS MONTH INCOME */}
           <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #C7EBE0 0%, #E3F1F0 100%)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.55)", marginBottom: 4 }}>This Month</div>
@@ -2043,6 +2026,29 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", letterSpacing: "0.06em", marginBottom: 8 }}>{monthlyIncome.lastLabel} · Income</div>
             <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "var(--ink)", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(monthlyIncome.lastAmount, true)}</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", marginTop: 14 }}>{monthlyIncome.lastCount} credits</div>
+          </div>
+          {/* INCOME */}
+          <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
+          </div>
+          {/* SPEND */}
+          <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
+          </div>
+          {/* NET */}
+          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 22px 18px", background: netPositive ? "var(--warm-dark)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+              <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
+              </div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend</div>
+            </div>
           </div>
         </div>
 
@@ -2595,7 +2601,7 @@ export default function App() {
         .bento-top { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
         .bento-top .net-hero-inner { grid-column: 1 / -1; }
         @media (min-width: 640px) { .bento-top { grid-template-columns: 1fr 1fr 1fr; } .bento-top .net-hero-inner { grid-column: auto; } }
-        @media (min-width: 1180px) { .bento-top { grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr; } }
+        @media (min-width: 1180px) { .bento-top { grid-template-columns: 1fr 1fr 1fr 1fr 1.4fr; } }
         .donut-container { width: 200px; height: 200px; }
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
@@ -2725,26 +2731,18 @@ export default function App() {
 
           <main className="main-column">
             <div className="fade-up" style={{ marginBottom: 28 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 24, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'Inter', sans-serif", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
-                <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>{eyebrow}</span>
-                <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-                <span>{accountLabel}</span>
-                <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-                <span>{session.user.email}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <button className="nav-hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                   </button>
                   <img
                     src={isPro ? AVATAR_BXS : AVATAR_OTO}
                     alt={eyebrow}
-                    style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
+                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
                   />
-                  <div>
-                    <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
-                    <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 16, fontWeight: 300, color: "var(--ink-light)", marginTop: 6 }}>Welcome to your financial dashboard.</div>
+                  <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", color: "var(--ink)", lineHeight: 1.15 }}>
+                    Welcome back, <span style={{ color: "var(--red)" }}>{eyebrow}</span> <span aria-hidden="true">👋</span>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -2767,7 +2765,7 @@ export default function App() {
             </div>
 
             {view === "dashboard" && (
-              <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} />
+              <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} accountLabel={accountLabel} />
             )}
             {view === "reports" && (
               <FinancialReportGenerator session={session} workspace={workspace} />
