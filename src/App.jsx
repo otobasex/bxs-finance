@@ -2735,7 +2735,7 @@ function UpcomingCard() {
   return (
     <section className="upcoming-card">
       <div className="upcoming-head">
-        <div className="upcoming-title">Upcoming</div>
+        <div className="upcoming-title">Subscriptions</div>
         <div className="upcoming-meta-line">{upcoming.length} charges · next {UPCOMING_HORIZON_DAYS}d</div>
       </div>
       <div className="upcoming-total">
