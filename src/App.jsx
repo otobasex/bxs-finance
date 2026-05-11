@@ -2614,7 +2614,7 @@ export default function App() {
 
         /* Categories + Transactions side-by-side */
         .dual-bento { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
-        .dual-bento > .stat-card { margin: 0; min-width: 0; }
+        .dual-bento > .stat-card { margin: 0; min-width: 0; background: #FDF8F5; }
         @media (max-width: 1100px) { .dual-bento { grid-template-columns: 1fr; } }
 
         /* v3 section heads (Category + Transactions) */
@@ -2680,7 +2680,7 @@ export default function App() {
         .sidebar-close svg { width: 12px; height: 12px; }
 
         /* Goal pill */
-        .goal-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 100px; background: var(--cream-card); border: 1px solid var(--cream-border); font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink-mid); letter-spacing: -0.005em; line-height: 1; }
+        .goal-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 100px; background: #FDF8F5; border: 1px solid var(--cream-border); font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink-mid); letter-spacing: -0.005em; line-height: 1; }
         .goal-pill .goal-label { font-weight: 700; color: var(--ink); }
         .goal-pill .goal-amount { color: var(--red); font-weight: 600; }
 
@@ -2692,7 +2692,7 @@ export default function App() {
         .studio-logo { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #E31A51, #F27067); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 2px 8px rgba(225,53,64,0.25); flex-shrink: 0; }
         .studio-logo svg { width: 18px; height: 18px; }
         .studio-name { font-family: 'General Sans', 'Inter', sans-serif; font-size: 17px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); }
-        .studio-section { background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; }
+        .studio-section { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; }
         .studio-section-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
         .studio-section-head .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--red); }
         .studio-section-head .label { flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--ink); text-transform: uppercase; }
