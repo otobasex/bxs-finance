@@ -728,23 +728,16 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
   const selTxtHi  = dark ? "rgba(255,255,255,0.9)"    : "var(--ink)";
 
   return (
-    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--r-xl)", padding: "20px 24px 16px", marginBottom: 14, position: "relative", overflow: "visible" }}>
-      {/* bg grid lines */}
-      <div style={{ position: "absolute", left: 24, right: 24, top: 52, bottom: 40, pointerEvents: "none", zIndex: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-        {[0,1,2,3,4].map(i => (
-          <div key={i} style={{ width: "100%", height: "1px", background: gridLine }} />
-        ))}
-      </div>
-
+    <div className="year-chart-v3" style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--r-2xl)", padding: "26px 30px 20px", marginBottom: 14 }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, position: "relative", zIndex: 1, gap: 28, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
           {/* FY Navigator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoBack ? 1 : 0.2, transition: "opacity 0.15s" }}>
               <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill={arrowFill}/></svg>
             </button>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: fyColor }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: fyColor }}>
               {mode === 'cy' ? `CY ${yearAnchor}` : `FY ${yearAnchor}/${yearAnchor + 1}`}
             </div>
             <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoFwd ? 1 : 0.2, transition: "opacity 0.15s" }}>
@@ -752,23 +745,23 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
             </button>
           </div>
           {/* Totals */}
-          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <div>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: labelMute }}>Income  </span>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: incomeCol }}>{fmt(totalIncome, true)}</span>
+          <div style={{ display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Income</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: incomeCol }}>{fmt(totalIncome, true)}</span>
             </div>
-            <div>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: labelMute }}>Spend  </span>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: spendCol }}>{fmt(totalSpend, true)}</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Spend</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: spendCol }}>{fmt(totalSpend, true)}</span>
             </div>
-            <div>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: labelMute }}>Net  </span>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700, color: netCol(totalIncome - totalSpend) }}>{fmt(totalIncome - totalSpend, true)}</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Net</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: netCol(totalIncome - totalSpend) }}>{fmt(totalIncome - totalSpend, true)}</span>
             </div>
           </div>
         </div>
         {selectedMonth && (
-          <button onClick={() => onSelectMonth(null)} style={{ background: clearBg, border: `1px solid ${clearBd}`, borderRadius: 100, padding: "4px 12px", color: clearTxt, fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase" }}>
+          <button onClick={() => onSelectMonth(null)} style={{ background: clearBg, border: `1px solid ${clearBd}`, borderRadius: 100, padding: "4px 12px", color: clearTxt, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", cursor: "pointer", textTransform: "uppercase" }}>
             Clear ✕
           </button>
         )}
@@ -840,12 +833,12 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
 
               {/* Month label */}
               <div style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 8, fontWeight: isSelected ? 700 : 400,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 9, fontWeight: isSelected ? 700 : 500,
                 color: monthLbl(isSelected, isEmpty),
-                letterSpacing: "0.06em", textTransform: "uppercase",
+                letterSpacing: "0.12em", textTransform: "uppercase",
                 transition: "color 0.2s",
-                paddingTop: 6,
+                paddingTop: 8,
                 whiteSpace: "nowrap",
               }}>
                 {ALL_MONTHS[m.month].slice(0,3)}
@@ -2002,17 +1995,17 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${period.type}-${period.anchor?.getTime?.() ?? period.from ?? ''}-${activeStmt}`}>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
           </div>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
           </div>
-          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 28px 18px", background: netPositive ? "var(--charcoal)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(13,11,9,0.14)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
+          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 28px 18px", background: netPositive ? "var(--warm-dark)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 40, fontWeight: 700, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 600, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
               <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
@@ -2091,17 +2084,17 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           </div>
 
           {txView === "list" && (
-            <div style={{ overflowY: "auto", maxHeight: 520 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "var(--cream)" }}>{[["Date","left"],["Description","left"],["Category","left"],["Amount","right"],["","right"]].map(([h,align]) => <th key={h} style={{ padding:"10px 20px",textAlign:align,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--ink-faint)",borderBottom:"1px solid var(--cream-border)" }}>{h}</th>)}</tr></thead>
+            <div style={{ overflowY: "auto", maxHeight: 540 }}>
+              <table className="tx-table-v3">
+                <thead><tr>{[["Date","left"],["Description","left"],["Category","left"],["Amount","right"],["","right"]].map(([h,align]) => <th key={h} className={align==="right"?"right":undefined}>{h}</th>)}</tr></thead>
                 <tbody>
                   {filtered.map(t => { const cat=t.manualCategory||t.category; const cfg=catMap[cat]||{color:"#7A756E",bg:"#7A756E18",icon:"•"}; return (
                     <tr key={t.id} className="tx-row">
-                      <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap" }}>{t.dateStr}</td>
-                      <td style={{ padding:"11px 20px",fontFamily:"'Inter',sans-serif",fontSize:13,color:"var(--ink-mid)",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.description}</td>
-                      <td style={{ padding:"11px 20px" }}><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
-                      <td style={{ padding:"11px 20px",textAlign:"right",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:600,color:t.isCredit?"#3D8C6F":"var(--red)",whiteSpace:"nowrap" }}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
-                      <td style={{ padding:"11px 12px 11px 4px",textAlign:"right" }}>
+                      <td className="date">{t.dateStr}</td>
+                      <td className="desc">{t.description}</td>
+                      <td><button onClick={() => !t.isCredit && setPickerTx(t)} style={{ background:cfg.bg,color:cfg.color,padding:"3px 10px",borderRadius:100,fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,letterSpacing:"0.04em",whiteSpace:"nowrap",border:`1px solid ${t.manualCategory?cfg.color+"66":"transparent"}`,cursor:t.isCredit?"default":"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all 0.15s" }}>{cfg.icon} {cat}{t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✎</span>}{t.aiCategorised&&!t.manualCategory&&<span style={{fontSize:8,opacity:0.7}}>✦</span>}</button></td>
+                      <td className={`amount ${t.isCredit?"credit":"debit"}`}>{t.isCredit?"+":"−"}{fmt(t.amount)}</td>
+                      <td style={{ textAlign:"right", paddingRight: 12 }}>
                         <button onClick={() => setEditTx(t)} style={{ background:"transparent",border:"1px solid var(--cream-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:9,color:"var(--ink-faint)" }}>✎</button>
                       </td>
                     </tr>
@@ -2331,6 +2324,80 @@ function FinancialReportGenerator({ session, workspace }) {
   );
 }
 
+/* ─── SIDEBAR (v3 Money OS shell) ─── */
+const BUILD_QUEUE_ITEMS = [
+  { title: "Net Worth Tracker",   tag: "Module 1", desc: "Assets minus liabilities, updated monthly.",
+    icon: <><path d="M12 3v18"/><path d="M3 7h18"/><path d="M7 7l-3 7a3 3 0 0 0 6 0z"/><path d="M17 7l3 7a3 3 0 0 1-6 0z"/></> },
+  { title: "Cash Flow Forecast",  tag: "Module 3", desc: "90-day rolling view of money in vs out.",
+    icon: <><path d="M7 3v18M3 7l4-4 4 4"/><path d="M17 21V3M21 17l-4 4-4-4"/></> },
+  { title: "Savings Rate",        tag: "Module 4", desc: "The metric that predicts long-term wealth.",
+    icon: <><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></> },
+  { title: "Business Runway",     tag: "Module 3", desc: "Balance ÷ monthly burn. Always visible.",
+    icon: <><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></> },
+  { title: "Tax Provision",       tag: "Module 5", desc: "Running provisional tax estimate.",
+    icon: <><path d="M5 2v20l2.5-1.5L10 22l2-1.5L14 22l2.5-1.5L19 22V2z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></> },
+  { title: "FX Conversion Log",   tag: "Module 6", desc: "International payments, rates, ZAR equivalent.",
+    icon: <><polyline points="17 2 21 6 17 10"/><path d="M3 12V8a4 4 0 0 1 4-4h14"/><polyline points="7 22 3 18 7 14"/><path d="M21 12v4a4 4 0 0 1-4 4H3"/></> },
+];
+
+function Sidebar({ open, onClose }) {
+  const [openItem, setOpenItem] = useState(null);
+  return (
+    <>
+      <div className={`sidebar-backdrop${open ? " open" : ""}`} onClick={onClose} />
+      <aside className={`studio-sidebar fade-up${open ? " open" : ""}`}>
+        <div className="studio-brand">
+          <div className="studio-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 17 9 11 13 15 21 7"/>
+              <polyline points="15 7 21 7 21 13"/>
+            </svg>
+          </div>
+          <div className="studio-name">Money OS</div>
+        </div>
+
+        <div className="studio-section">
+          <div className="studio-section-head">
+            <span className="dot"/>
+            <span className="label">Build Queue</span>
+            <span className="chev">{BUILD_QUEUE_ITEMS.length}</span>
+          </div>
+          <div className="studio-items">
+            {BUILD_QUEUE_ITEMS.map((item, i) => (
+              <div key={item.title} className={`build-side-item${openItem === i ? " open" : ""}`} onClick={() => setOpenItem(openItem === i ? null : i)}>
+                <div className="build-side-row">
+                  <svg className="build-side-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
+                  <span className="build-side-title">{item.title}</span>
+                  <span className="build-side-chev">›</span>
+                </div>
+                <div className="build-side-body">
+                  <div className="build-side-desc">{item.desc}</div>
+                  <div className="build-side-tag">{item.tag}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="ai-insight">
+          <div className="ai-insight-header">
+            <div className="ai-insight-icon">✦</div>
+            <span className="ai-insight-label">Claude noticed</span>
+          </div>
+          <div className="ai-insight-content">
+            Your "Other" bucket is 36% of spend — almost certainly miscategorised transfers and bank fees.
+          </div>
+          <button className="ai-insight-action">Re-categorise →</button>
+        </div>
+
+        <div className="studio-foot">
+          <div className="studio-version">Review rhythm · weekly</div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
 /* ─── ROOT ─── */
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -2344,6 +2411,7 @@ export default function App() {
   const [showCatManager, setShowCatManager] = useState(false);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [view, setView] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const catMap = useMemo(() => buildCatMap(categories), [categories]);
 
   // Persist preferences
@@ -2457,16 +2525,22 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;900&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap');
+        @import url('https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-          --cream: #FFFFFF; --cream-card: #F5F5F5; --cream-border: rgba(0,0,0,0.10);
+          --cream: #FFFFFF; --cream-card: #F5F5F5; --cream-border: rgba(0,0,0,0.10); --cream-border-strong: rgba(0,0,0,0.12);
           --ink: #0A0A0A; --ink-mid: #3A3A3A; --ink-light: #767676; --ink-faint: #B0B0B0;
-          --red: #E31A51; --grad: linear-gradient(135deg, #E31A51, #FF5C7A);
-          --charcoal: #111111; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px;
-          --mono: 'Inter', sans-serif;
+          --red: #E31A51; --coral: #F27067; --grad: linear-gradient(135deg, #E31A51, #FF5C7A);
+          --charcoal: #111111; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px; --r-2xl: 32px;
+          --warm-dark: #15110E; --warm-dark-card: #1F1A16; --warm-dark-border: rgba(255,255,255,0.08);
+          --peach-blush-grad: linear-gradient(160deg, #FBE5D8 0%, #FAF1EA 60%, #F6EDE3 100%);
+          --sidebar-grad: linear-gradient(180deg, #FBEFE8 0%, #FBE5D8 100%);
+          --bar-income: linear-gradient(to bottom, #7DD4A2, #B8E6CD);
+          --bar-spend:  linear-gradient(to bottom, #F08077, #F6BDB9);
+          --mono: 'IBM Plex Mono', monospace;
         }
-        .dark { --cream: #141210; --cream-card: #1C1917; --cream-border: rgba(255,255,255,0.08); --ink: #F5F1ED; --ink-mid: #C4BDB6; --ink-light: #8A8279; --ink-faint: #6A6560; --charcoal: #2C2926; }
+        .dark { --cream: #141210; --cream-card: #1C1917; --cream-border: rgba(255,255,255,0.08); --cream-border-strong: rgba(255,255,255,0.14); --ink: #F5F1ED; --ink-mid: #C4BDB6; --ink-light: #8A8279; --ink-faint: #6A6560; --charcoal: #2C2926; --sidebar-grad: linear-gradient(180deg, #2A1F17 0%, #1F1812 100%); }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 4px; }
         .cat-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; border: 1px solid var(--cream-border); background: var(--cream-card); color: var(--ink-mid); transition: all 0.15s; white-space: nowrap; }
         .cat-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -2510,56 +2584,143 @@ export default function App() {
         .nav-btn { padding: 6px 14px; border-radius: 100px; border: 1.5px solid rgba(0,0,0,0.10); background: transparent; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: var(--ink-mid); cursor: pointer; transition: all 0.15s; letter-spacing: 0.01em; }
         .nav-btn:hover { border-color: rgba(0,0,0,0.2); background: var(--cream-card); }
         .nav-btn.active { background: var(--charcoal); border-color: var(--charcoal); color: white; }
+
+        /* ─── V3 SHELL ─── */
+        .app-shell { display: grid; grid-template-columns: 244px 1fr; gap: 20px; align-items: start; }
+        .main-column { min-width: 0; }
+        @media (max-width: 1080px) {
+          .app-shell { grid-template-columns: 1fr; }
+          .studio-sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; width: 280px; max-height: none !important; z-index: 200; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 24px 60px rgba(0,0,0,0.18); border-radius: 0 20px 20px 0; }
+          .studio-sidebar.open { transform: translateX(0); }
+          .sidebar-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.42); z-index: 199; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+          .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+        }
+        @media (min-width: 1081px) {
+          .sidebar-backdrop { display: none; }
+          .nav-hamburger { display: none !important; }
+        }
+
+        /* ─── SIDEBAR ─── */
+        .studio-sidebar { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; padding: 12px; background: var(--sidebar-grad); border: 1px solid var(--cream-border); border-radius: 20px; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .studio-sidebar::-webkit-scrollbar { width: 0; }
+        .studio-brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 10px; }
+        .studio-logo { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #E31A51, #F27067); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 2px 8px rgba(225,53,64,0.25); flex-shrink: 0; }
+        .studio-logo svg { width: 18px; height: 18px; }
+        .studio-name { font-family: 'General Sans', 'Inter', sans-serif; font-size: 17px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); }
+        .studio-section { background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; }
+        .studio-section-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+        .studio-section-head .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--red); }
+        .studio-section-head .label { flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--ink); text-transform: uppercase; }
+        .studio-section-head .chev { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: var(--red); font-size: 10px; }
+        .studio-items { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px; }
+        .build-side-item { display: flex; flex-direction: column; border-radius: 8px; cursor: pointer; transition: background 0.15s; border: 1px solid transparent; }
+        .build-side-item:hover { background: var(--cream); }
+        .build-side-item.open { background: var(--cream); border-color: var(--cream-border); }
+        .build-side-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+        .build-side-icon { width: 14px; height: 14px; color: var(--ink-light); flex-shrink: 0; transition: color 0.15s; }
+        .build-side-title { flex: 1; font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 500; color: var(--ink-mid); letter-spacing: -0.005em; transition: color 0.15s; }
+        .build-side-chev { color: var(--ink-faint); font-size: 11px; transition: transform 0.25s; line-height: 1; }
+        .build-side-item:hover .build-side-icon, .build-side-item:hover .build-side-title { color: var(--ink); }
+        .build-side-item.open .build-side-icon, .build-side-item.open .build-side-title { color: var(--ink); }
+        .build-side-item.open .build-side-chev { transform: rotate(90deg); }
+        .build-side-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 10px 0 34px; display: flex; flex-direction: column; gap: 8px; transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.25s ease; }
+        .build-side-item.open .build-side-body { max-height: 220px; opacity: 1; padding: 0 10px 12px 34px; transition: max-height 0.4s ease, opacity 0.3s ease 0.05s, padding 0.25s ease; }
+        .build-side-desc { font-family: 'Noto Serif', serif; font-size: 12px; color: var(--ink-mid); line-height: 1.45; }
+        .build-side-tag { align-self: flex-start; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: 100px; }
+
+        /* AI Insight bento */
+        .ai-insight { display: flex; flex-direction: column; padding: 16px; background: var(--peach-blush-grad); border: 1px solid rgba(225,53,64,0.18); border-radius: 14px; position: relative; box-shadow: 0 1px 3px rgba(225,53,64,0.06); }
+        .ai-insight-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .ai-insight-icon { width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: white; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+        .ai-insight-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; color: var(--red); letter-spacing: 0.14em; text-transform: uppercase; }
+        .ai-insight-content { font-family: 'Inter', sans-serif; font-size: 12.5px; color: var(--ink-mid); letter-spacing: -0.005em; line-height: 1.45; margin-bottom: 12px; }
+        .ai-insight-action { align-self: flex-start; background: var(--ink); color: white; border: none; border-radius: 100px; padding: 7px 14px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: -0.005em; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+        .ai-insight-action:hover { background: var(--red); }
+        .ai-insight-dismiss { position: absolute; top: 8px; right: 8px; background: transparent; border: none; cursor: pointer; width: 22px; height: 22px; color: var(--ink-faint); font-size: 14px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.15s; }
+        .ai-insight-dismiss:hover { background: rgba(0,0,0,0.08); color: var(--ink); }
+
+        .studio-foot { padding: 14px 8px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .studio-version { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--ink-faint); text-transform: uppercase; text-align: center; }
+
+        /* Hamburger button */
+        .nav-hamburger { background: transparent; border: 1.5px solid rgba(0,0,0,0.14); border-radius: 100px; width: 34px; height: 34px; cursor: pointer; color: var(--ink-mid); display: flex; align-items: center; justify-content: center; }
+        .nav-hamburger svg { width: 16px; height: 16px; }
+
+        /* ─── YEAR CHART V3 ─── */
+        .year-chart-v3 { position: relative; overflow: hidden; }
+        .year-chart-v3::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 12px 12px, rgba(13,11,9,0.045) 1px, transparent 1.6px) 0 0 / 22px 22px; pointer-events: none; z-index: 0; mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.3)); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.3)); }
+        .dark .year-chart-v3::before { background: radial-gradient(circle at 12px 12px, rgba(255,255,255,0.05) 1px, transparent 1.6px) 0 0 / 22px 22px; }
+
+        /* ─── TX TABLE V3 ─── */
+        .tx-table-v3 { width: 100%; border-collapse: collapse; }
+        .tx-table-v3 thead tr { background: rgba(13,11,9,0.025); }
+        .dark .tx-table-v3 thead tr { background: rgba(255,255,255,0.025); }
+        .tx-table-v3 th { padding: 11px 24px; text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); border-bottom: 1px solid var(--cream-border); }
+        .tx-table-v3 th.right { text-align: right; }
+        .tx-table-v3 td { padding: 13px 24px; font-family: 'Inter', sans-serif; font-size: 13px; color: var(--ink-mid); letter-spacing: -0.005em; }
+        .tx-table-v3 td.date { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-faint); white-space: nowrap; letter-spacing: 0.04em; }
+        .tx-table-v3 td.desc { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+        .tx-table-v3 td.amount { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap; font-size: 12.5px; }
+        .tx-table-v3 td.amount.credit { color: #1F8A55; }
+        .tx-table-v3 td.amount.debit  { color: var(--red); }
       `}</style>
 
-      <div className={dark ? "dark" : ""} style={{ background: "var(--cream)", minHeight: "100vh", padding: "48px 28px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
-        <div className="fade-up" style={{ marginBottom: 28 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 32, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'Inter', sans-serif", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
-            <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>{eyebrow}</span>
-            <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-            <span>{accountLabel}</span>
-            <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-            <span>{session.user.email}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <img
-                src={isPro ? AVATAR_BXS : AVATAR_OTO}
-                alt={eyebrow}
-                style={{ width: 78, height: 78, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
-              />
-              <div>
-                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 36, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
-                <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 18, fontWeight: 300, color: "var(--ink-light)", marginTop: 6 }}>Welcome to your financial dashboard.</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              {/* View toggle */}
-              <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2, marginRight: 4 }}>
-                <button className={`nav-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Dashboard</button>
-                <button className={`nav-btn${view === "reports" ? " active" : ""}`} onClick={() => setView("reports")}>Reports</button>
-              </div>
-              <div className="ws-toggle">
-                <button className={`ws-toggle-opt${isPro ? " active" : ""}`} onClick={() => switchWorkspace("professional")} title="Professional">💼</button>
-                <button className={`ws-toggle-opt${!isPro ? " active" : ""}`} onClick={() => switchWorkspace("personal")} title="Personal">👤</button>
-              </div>
-              <div className="ws-toggle">
-                <button className={`ws-toggle-opt${!dark ? " active" : ""}`} onClick={() => setDark(false)} title="Light mode">☀️</button>
-                <button className={`ws-toggle-opt${dark ? " active" : ""}`} onClick={() => setDark(true)} title="Dark mode">🌙</button>
-              </div>
-              <button onClick={() => setShowCatManager(true)} title="Manage categories" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", color: "var(--ink-faint)", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>🗂️</button>
-              <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "5px 12px", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.02em" }}>Sign out</button>
-            </div>
-          </div>
-        </div>
+      <div className={dark ? "dark" : ""} style={{ background: "var(--cream)", minHeight: "100vh", padding: "24px 20px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
+        <div className="app-shell" style={{ maxWidth: 1480, margin: "0 auto" }}>
+          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {view === "dashboard" && (
-          <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} />
-        )}
-        {view === "reports" && (
-          <FinancialReportGenerator session={session} workspace={workspace} />
-        )}
-        {showCatManager && <CategoryManager categories={categories} onSave={handleSaveCategories} onClose={() => setShowCatManager(false)} />}
+          <main className="main-column">
+            <div className="fade-up" style={{ marginBottom: 28 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginBottom: 24, padding: "5px 12px", borderRadius: 100, background: "var(--cream-card)", border: "1px solid var(--cream-border)", fontFamily: "'Inter', sans-serif", fontSize: 11, letterSpacing: "0.04em", color: "var(--ink-faint)" }}>
+                <span style={{ color: isPro ? "var(--red)" : "var(--ink)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>{eyebrow}</span>
+                <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+                <span>{accountLabel}</span>
+                <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+                <span>{session.user.email}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <button className="nav-hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+                  </button>
+                  <img
+                    src={isPro ? AVATAR_BXS : AVATAR_OTO}
+                    alt={eyebrow}
+                    style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
+                  />
+                  <div>
+                    <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em", color: "var(--ink)", lineHeight: 1.1 }}>Hello, {eyebrow} 👋</div>
+                    <div style={{ fontFamily: "'Noto Serif', serif", fontSize: 16, fontWeight: 300, color: "var(--ink-light)", marginTop: 6 }}>Welcome to your financial dashboard.</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2, marginRight: 4 }}>
+                    <button className={`nav-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Dashboard</button>
+                    <button className={`nav-btn${view === "reports" ? " active" : ""}`} onClick={() => setView("reports")}>Reports</button>
+                  </div>
+                  <div className="ws-toggle">
+                    <button className={`ws-toggle-opt${isPro ? " active" : ""}`} onClick={() => switchWorkspace("professional")} title="Professional">💼</button>
+                    <button className={`ws-toggle-opt${!isPro ? " active" : ""}`} onClick={() => switchWorkspace("personal")} title="Personal">👤</button>
+                  </div>
+                  <div className="ws-toggle">
+                    <button className={`ws-toggle-opt${!dark ? " active" : ""}`} onClick={() => setDark(false)} title="Light mode">☀️</button>
+                    <button className={`ws-toggle-opt${dark ? " active" : ""}`} onClick={() => setDark(true)} title="Dark mode">🌙</button>
+                  </div>
+                  <button onClick={() => setShowCatManager(true)} title="Manage categories" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", color: "var(--ink-faint)", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>🗂️</button>
+                  <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "5px 12px", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.02em" }}>Sign out</button>
+                </div>
+              </div>
+            </div>
+
+            {view === "dashboard" && (
+              <DashboardPanel key={workspace} userId={session.user.id} workspace={workspace} categories={categories} catMap={catMap} dark={dark} />
+            )}
+            {view === "reports" && (
+              <FinancialReportGenerator session={session} workspace={workspace} />
+            )}
+            {showCatManager && <CategoryManager categories={categories} onSave={handleSaveCategories} onClose={() => setShowCatManager(false)} />}
+          </main>
+        </div>
       </div>
     </>
   );
