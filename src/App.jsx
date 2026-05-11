@@ -722,7 +722,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
   const clearBd   = dark ? "rgba(255,255,255,0.12)"   : "var(--cream-border)";
   const clearTxt  = dark ? "rgba(255,255,255,0.6)"    : "var(--ink-mid)";
   const emptyBar  = dark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.06)";
-  const monthLbl  = (sel, empty) => sel ? (dark ? "rgba(255,255,255,0.9)" : "var(--ink)") : empty ? (dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.15)") : (dark ? "rgba(255,255,255,0.35)" : "var(--ink-faint)");
+  const monthLbl  = (sel, empty) => sel ? (dark ? "rgba(255,255,255,0.95)" : "var(--ink)") : empty ? (dark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.22)") : (dark ? "rgba(255,255,255,0.65)" : "var(--ink-mid)");
   const selBorder = dark ? "rgba(255,255,255,0.08)"   : "var(--cream-border)";
   const selTxtMute= dark ? "rgba(255,255,255,0.4)"    : "var(--ink-faint)";
   const selTxtHi  = dark ? "rgba(255,255,255,0.9)"    : "var(--ink)";
@@ -1282,7 +1282,7 @@ function PeriodControl({ period, setPeriod, onOpenCustom }) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <div style={{ display: "flex", background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2 }}>
+      <div style={{ display: "flex", background: "#FDF8F5", border: "1px solid var(--cream-border)", borderRadius: 100, padding: 3, gap: 2 }}>
         {types.map(({ id, label: btnLabel }) => {
           const active = period.type === id;
           return (
@@ -1295,7 +1295,7 @@ function PeriodControl({ period, setPeriod, onOpenCustom }) {
         })}
       </div>
       {canStep && (
-        <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--cream-border)", borderRadius: 100, padding: "2px 4px", background: "var(--cream-card)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--cream-border)", borderRadius: 100, padding: "2px 4px", background: "#FDF8F5" }}>
           <button onClick={() => step(-1)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1 }}>‹</button>
           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.05em", minWidth: 70, textAlign: "center" }}>{label}</span>
           <button onClick={() => step(1)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1 }}>›</button>
@@ -2210,6 +2210,8 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           })()}
           </div>
         </div>
+
+        <BuildQueueBento />
       </>}
 
       <ImportModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} onImportDirect={handleImportDirect} catNames={catNames} />
@@ -2383,6 +2385,49 @@ const BUILD_QUEUE_ITEMS = [
   { title: "FX Conversion Log",   tag: "Module 6", desc: "International payments, rates, ZAR equivalent.",
     icon: <><polyline points="17 2 21 6 17 10"/><path d="M3 12V8a4 4 0 0 1 4-4h14"/><polyline points="7 22 3 18 7 14"/><path d="M21 12v4a4 4 0 0 1-4 4H3"/></> },
 ];
+
+function BuildQueueBento() {
+  const [done, setDone] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("bxs-build-done") || "[]")); } catch { return new Set(); }
+  });
+  const toggle = (i) => {
+    setDone(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      try { localStorage.setItem("bxs-build-done", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+  return (
+    <section className="build-queue-card fade-up" style={{ animationDelay: "0.18s" }}>
+      <div className="section-head" style={{ padding: "22px 28px 16px", margin: 0 }}>
+        <div className="section-head-left">
+          <h3>Build queue</h3>
+          <p className="sub">{BUILD_QUEUE_ITEMS.length} additions queued from the Financial Literacy curriculum.</p>
+        </div>
+        <div className="section-head-right">
+          <span className="count">Review rhythm — weekly</span>
+        </div>
+      </div>
+      <div className="build-queue-grid">
+        {BUILD_QUEUE_ITEMS.map((item, i) => {
+          const isDone = done.has(i);
+          return (
+            <div key={item.title} className={`build-item${isDone ? " done" : ""}`}>
+              <button className={`build-check${isDone ? " checked" : ""}`} onClick={() => toggle(i)} aria-label={isDone ? "Mark incomplete" : "Mark complete"}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <div className="build-num">{String(i + 1).padStart(2, "0")}</div>
+              <div className="build-title">{item.title}</div>
+              <div className="build-desc">{item.desc}</div>
+              <div className="build-tag">{item.tag}</div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 function Sidebar({ open, onClose }) {
   const [openItem, setOpenItem] = useState(null);
@@ -2627,6 +2672,33 @@ export default function App() {
         .ai-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 100px; background: var(--cream); border: 1px solid var(--cream-border-strong); color: var(--ink-mid); font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: -0.005em; cursor: pointer; transition: all 0.2s; }
         .ai-btn:hover:not(:disabled) { color: var(--red); border-color: rgba(225,53,64,0.4); transform: translateY(-1px); }
         .ai-btn:disabled { cursor: not-allowed; opacity: 0.8; }
+
+        /* Bottom Build Queue bento */
+        .build-queue-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-2xl); margin-top: 12px; overflow: hidden; }
+        .build-queue-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 900px) { .build-queue-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .build-queue-grid { grid-template-columns: 1fr; } }
+        .build-item { padding: 18px 24px 20px; border-right: 1px solid var(--cream-border); border-bottom: 1px solid var(--cream-border); display: flex; flex-direction: column; gap: 6px; position: relative; transition: background 0.15s; }
+        .build-item:hover { background: var(--cream); }
+        .build-item:nth-child(3n) { border-right: none; }
+        .build-item:nth-last-child(-n+3):not(:nth-child(-n+3)) { border-bottom: none; }
+        @media (max-width: 900px) and (min-width: 601px) {
+          .build-item:nth-child(3n) { border-right: 1px solid var(--cream-border); }
+          .build-item:nth-child(2n) { border-right: none; }
+          .build-item:nth-last-child(-n+2):not(:nth-child(-n+2)) { border-bottom: none; }
+        }
+        @media (max-width: 600px) { .build-item { border-right: none; } .build-item:last-child { border-bottom: none; } }
+        .build-item.done .build-title { color: var(--ink-faint); text-decoration: line-through; }
+        .build-item.done .build-desc, .build-item.done .build-num { color: var(--ink-faint); }
+        .build-check { position: absolute; top: 18px; right: 24px; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--cream-border-strong); background: var(--cream); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: transparent; padding: 0; }
+        .build-check:hover { border-color: var(--ink-light); }
+        .build-check.checked { background: var(--ink); border-color: var(--ink); color: white; }
+        .build-check svg { width: 12px; height: 12px; stroke-width: 3; }
+        .build-num { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--red); letter-spacing: 0.05em; }
+        .build-title { font-family: 'General Sans', 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; letter-spacing: -0.012em; color: var(--ink); padding-right: 32px; }
+        .build-desc { font-family: 'Noto Serif', serif; font-size: 12.5px; line-height: 1.45; color: var(--ink-mid); }
+        .build-tag { align-self: flex-start; margin-top: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; background: var(--cream); border: 1px solid var(--cream-border); border-radius: 100px; }
+        .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; }
         .donut-container { width: 200px; height: 200px; }
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
