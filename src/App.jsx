@@ -2990,8 +2990,9 @@ export default function App() {
         .goal-card { background: linear-gradient(160deg, #1F1A16 0%, #14100C 100%); color: white; border: 1px solid var(--warm-dark-border); border-radius: var(--r-2xl); padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden; }
         .goal-card::before { content: ""; position: absolute; top: -40%; right: -10%; width: 60%; height: 140%; background: radial-gradient(circle, rgba(242,112,103,0.16), transparent 60%); pointer-events: none; }
         .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; position: relative; z-index: 1; }
-        .goal-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.14em; text-transform: uppercase; }
-        .goal-period { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; }
+        .goal-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+        .goal-period { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; white-space: nowrap; }
+        .goal-head { flex-wrap: wrap; row-gap: 8px; }
         .goal-body { display: flex; align-items: center; gap: 18px; flex: 1; position: relative; z-index: 1; }
         .goal-donut { width: 150px; height: 150px; flex-shrink: 0; position: relative; }
         .goal-donut svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
