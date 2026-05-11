@@ -2648,29 +2648,33 @@ function GoalCard({ allTransactions }) {
   );
 }
 
-// TODO: pull from Notion when credentials are provided
-const MOCK_RECEIVABLES = [
-  { name: "SGEG · April retainer",   amount: 32000, dueDate: "2026-04-25", paid: false },
-  { name: "Akpabio Inc · Phase II",  amount: 53000, dueDate: "2026-05-22", paid: false },
+// Mirrors the Notion "Invoices" DB (outstanding only). Re-pulled weekly.
+// amount = outstanding amount (not invoice total); invoiceDate = ISO or null.
+const INVOICES = [
+  { name: "Hard Work Taste Nice (Brand + Website)", amount: 9000,  invoiceDate: "2025-12-31" },
+  { name: "Asili Rock (Brand + Website)",            amount: 5000,  invoiceDate: "2025-12-31" },
+  { name: "Dr Gogo Website + Hosting",               amount: 1150,  invoiceDate: "2026-02-18" },
+  { name: "Redoystor Website",                       amount: 6500,  invoiceDate: "2026-02-21" },
+  { name: "NCH Webinar Ticketing",                   amount: 11500, invoiceDate: "2026-03-11" },
+  { name: "Black Jills (Brand + Website)",           amount: 10000, invoiceDate: null },
 ];
 
 function ReceivablesCard() {
   const today = new Date();
-  const enriched = MOCK_RECEIVABLES.map(r => {
-    const due = new Date(r.dueDate);
-    const diffDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
-    return { ...r, due, overdue: diffDays > 0 && !r.paid, daysLate: diffDays > 0 ? diffDays : 0, daysUntil: diffDays < 0 ? -diffDays : 0 };
-  });
-  const outstanding = enriched.filter(r => !r.paid).reduce((s, r) => s + r.amount, 0);
-  const overdue = enriched.filter(r => r.overdue);
-  const overdueAmt = overdue.reduce((s, r) => s + r.amount, 0);
-  const oldestOverdue = overdue.length ? Math.max(...overdue.map(r => r.daysLate)) : 0;
+  const enriched = INVOICES.map(r => {
+    const inv = r.invoiceDate ? new Date(r.invoiceDate) : null;
+    const daysSince = inv ? Math.floor((today - inv) / (1000 * 60 * 60 * 24)) : null;
+    return { ...r, inv, daysSince };
+  }).sort((a, b) => (b.daysSince ?? -1) - (a.daysSince ?? -1)); // oldest first
+  const outstanding = enriched.reduce((s, r) => s + r.amount, 0);
+  const datedDays = enriched.map(r => r.daysSince).filter(d => d !== null);
+  const oldestDays = datedDays.length ? Math.max(...datedDays) : 0;
 
   return (
     <section className="recv-card">
       <div className="recv-head">
         <div className="recv-title">Receivables</div>
-        <div className="recv-meta">{enriched.length} invoices · {overdue.length} overdue</div>
+        <div className="recv-meta">{enriched.length} invoices</div>
       </div>
       <div className="recv-stats">
         <div className="recv-stat">
@@ -2678,17 +2682,17 @@ function ReceivablesCard() {
           <span className="value">{fmt(outstanding, true)}</span>
           <span className="sub">{enriched.length} invoices</span>
         </div>
-        <div className={`recv-stat${overdue.length ? " overdue" : ""}`}>
-          <span className="label">Overdue</span>
-          <span className="value">{fmt(overdueAmt, true)}</span>
-          <span className="sub">{overdue.length ? `${oldestOverdue} days late` : "none"}</span>
+        <div className="recv-stat">
+          <span className="label">Oldest invoice</span>
+          <span className="value">{oldestDays}d</span>
+          <span className="sub">since billed</span>
         </div>
       </div>
       <div className="recv-list">
         {enriched.map((r, i) => (
-          <div key={i} className={`recv-invoice${r.overdue ? " overdue" : ""}`}>
+          <div key={i} className="recv-invoice">
             <span className="name">{r.name}</span>
-            <span className="age">{r.overdue ? `${r.daysLate}d late` : `due ${r.due.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}</span>
+            <span className="age">{r.daysSince !== null ? `${r.daysSince}d ago` : "no date"}</span>
             <span className="amt">{fmt(r.amount, true)}</span>
           </div>
         ))}
