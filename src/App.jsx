@@ -3297,7 +3297,7 @@ export default function App() {
                   <img
                     src={isPro ? AVATAR_BXS : AVATAR_OTO}
                     alt={eyebrow}
-                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
+                    style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "1.5px solid var(--cream-border)", flexShrink: 0, boxShadow: "0 1px 6px rgba(0,0,0,0.08)" }}
                   />
                   <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", color: "var(--ink)", lineHeight: 1.15 }}>
                     Welcome back, <span style={{ color: "var(--red)" }}>{eyebrow}</span> <span aria-hidden="true">👋</span>
