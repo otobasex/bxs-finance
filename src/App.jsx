@@ -2049,7 +2049,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.45)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
           </div>
           {/* NET */}
-          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 22px 18px", background: netPositive ? "var(--warm-dark)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
+          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 22px 18px", background: netPositive ? "var(--warm-dark)" : "linear-gradient(135deg, #F27067 0%, #C0392B 100%)", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(242,112,103,0.32)", display: "flex", flexDirection: "column" }}>
             <div className="kpi-head">
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)" }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: "0.06em" }}>{contextLabel}</div>
