@@ -1937,7 +1937,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
             </div>
           </div>
           {/* LAST MONTH INCOME */}
-          <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "var(--cream-card)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "#FDF8F5", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
             <div className="kpi-head">
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Last Month</div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>{monthlyIncome.lastLabel} · Income</div>
@@ -2648,7 +2648,7 @@ export default function App() {
         .tx-row:hover { background: var(--cream); }
         .tx-row:last-child { border-bottom: none; }
         .stat-card { background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: var(--r-xl); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-        .search-input { padding: 8px 14px; background: var(--cream-card); border: 1px solid var(--cream-border); border-radius: 100px; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink); outline: none; width: 200px; }
+        .search-input { padding: 8px 14px; background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: 100px; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink); outline: none; width: 200px; }
         .search-input::placeholder { color: var(--ink-faint); }
         .bento-top { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
         .bento-top .net-hero-inner { grid-column: 1 / -1; }
