@@ -1899,92 +1899,6 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
         </div>
       </div>
 
-      {/* ── YEAR OVERVIEW CHART — always visible when data exists ── */}
-      {statements.length > 0 && (
-        <YearChart
-          allTransactions={allTransactions}
-          selectedMonth={selectedMonth}
-          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: chartMode, anchor: new Date(displayedFY, chartMode === 'cy' ? 6 : 6, 1) }); setActiveCategory(null); setSearch(""); }}
-          sharedFYYear={displayedFY}
-          onFYChange={(y) => setPeriod({ type: chartMode, anchor: new Date(y, 6, 1) })}
-          mode={chartMode}
-          dark={dark}
-        />
-      )}
-
-      {/* ── DAILY CHART — for narrow periods where day-detail is useful ── */}
-      {transactions.length > 0 && (period.type === 'month' || period.type === 'custom' || period.type === 'statement') && (
-        <StatementChart transactions={transactions} dark={dark} />
-      )}
-
-      {/* ── STATEMENT MODE: PERIOD TABS ── */}
-      {navMode === "statement" && (() => {
-        const scrollTabs = (dir) => { if (tabsRef.current) tabsRef.current.scrollBy({ left: dir * 200, behavior: "smooth" }); };
-        return (
-          <div style={{ marginBottom: 14 }}>
-            {/* Scrollable tabs row */}
-            <div style={{ position: "relative" }}>
-              {/* Left fade + scroll arrow */}
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to right, var(--cream), transparent)", zIndex: 2, pointerEvents: "none" }} />
-              <button onClick={() => scrollTabs(-1)} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", zIndex: 3, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "50%", width: 22, height: 22, cursor: "pointer", fontSize: 10, color: "var(--ink-faint)", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>‹</button>
-              {/* Right fade + scroll arrow */}
-              <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to left, var(--cream), transparent)", zIndex: 2, pointerEvents: "none" }} />
-              <button onClick={() => scrollTabs(1)} style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", zIndex: 3, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "50%", width: 22, height: 22, cursor: "pointer", fontSize: 10, color: "var(--ink-faint)", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>›</button>
-              {/* Scrollable strip */}
-              <div ref={tabsRef} style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", paddingLeft: 28, paddingRight: 28, paddingBottom: 2, alignItems: "center" }}>
-                <style>{`.tabs-strip::-webkit-scrollbar{display:none}`}</style>
-                {statements.map((s, i) => {
-                  const isActive = !customRange && i === activeStmt;
-                  return (
-                    <div key={s.id} data-active-tab={isActive ? "true" : undefined} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: "1px solid var(--cream-border)", background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s", flexShrink: 0 }}>
-                      {isActive && statements.length > 1 && (
-                        <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
-                      )}
-                      {renamingStmt?.idx === i ? (
-                        <input
-                          autoFocus
-                          value={renamingStmt.value}
-                          onChange={e => setRenamingStmt(r => ({ ...r, value: e.target.value }))}
-                          onBlur={async () => {
-                            const newLabel = renamingStmt.value.trim();
-                            if (newLabel && newLabel !== s.label) {
-                              await supabase.from("statements").update({ label: newLabel }).eq("id", s.id);
-                              setStatements(prev => prev.map((st, si) => si === i ? { ...st, label: newLabel } : st));
-                            }
-                            setRenamingStmt(null);
-                          }}
-                          onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setRenamingStmt(null); }}
-                          style={{ padding: "3px 8px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", outline: "none", width: Math.max(80, renamingStmt.value.length * 7) + "px", letterSpacing: "0.05em" }}
-                        />
-                      ) : (
-                        <button
-                          onClick={() => { setActiveStmt(i); setPeriod({ type: 'statement' }); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
-                          onDoubleClick={() => isActive && setRenamingStmt({ idx: i, value: s.label })}
-                          title={isActive ? "Double-click to rename" : ""}
-                          style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}
-                        >{s.label}</button>
-                      )}
-                      {isActive && statements.length > 1 && (
-                        <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
-                      )}
-                      <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11 }}>✕</button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            {/* Action row below tabs — custom range + add */}
-            <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-              <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-                {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
-              </button>
-              {customRange && <button onClick={() => setPeriod({ type: 'fy', anchor: new Date() })} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
-              <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
-            </div>
-          </div>
-        );
-      })()}
-
       {!statements.length && (
         <div style={{ textAlign: "center", padding: "80px 24px", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.06em" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>🗂️</div>
@@ -2052,15 +1966,97 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           </div>
         </div>
 
+        {/* ── YEAR OVERVIEW CHART ── */}
+        <YearChart
+          allTransactions={allTransactions}
+          selectedMonth={selectedMonth}
+          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: chartMode, anchor: new Date(displayedFY, chartMode === 'cy' ? 6 : 6, 1) }); setActiveCategory(null); setSearch(""); }}
+          sharedFYYear={displayedFY}
+          onFYChange={(y) => setPeriod({ type: chartMode, anchor: new Date(y, 6, 1) })}
+          mode={chartMode}
+          dark={dark}
+        />
+
+        {/* ── DAILY CHART — for narrow periods where day-detail is useful ── */}
+        {transactions.length > 0 && (period.type === 'month' || period.type === 'custom' || period.type === 'statement') && (
+          <StatementChart transactions={transactions} dark={dark} />
+        )}
+
+        {/* ── STATEMENT MODE: PERIOD TABS ── */}
+        {navMode === "statement" && (() => {
+          const scrollTabs = (dir) => { if (tabsRef.current) tabsRef.current.scrollBy({ left: dir * 200, behavior: "smooth" }); };
+          return (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ position: "relative" }}>
+                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to right, var(--cream), transparent)", zIndex: 2, pointerEvents: "none" }} />
+                <button onClick={() => scrollTabs(-1)} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", zIndex: 3, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "50%", width: 22, height: 22, cursor: "pointer", fontSize: 10, color: "var(--ink-faint)", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>‹</button>
+                <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to left, var(--cream), transparent)", zIndex: 2, pointerEvents: "none" }} />
+                <button onClick={() => scrollTabs(1)} style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", zIndex: 3, background: "var(--cream-card)", border: "1px solid var(--cream-border)", borderRadius: "50%", width: 22, height: 22, cursor: "pointer", fontSize: 10, color: "var(--ink-faint)", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>›</button>
+                <div ref={tabsRef} style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", paddingLeft: 28, paddingRight: 28, paddingBottom: 2, alignItems: "center" }}>
+                  <style>{`.tabs-strip::-webkit-scrollbar{display:none}`}</style>
+                  {statements.map((s, i) => {
+                    const isActive = !customRange && i === activeStmt;
+                    return (
+                      <div key={s.id} data-active-tab={isActive ? "true" : undefined} style={{ display: "flex", alignItems: "center", borderRadius: 100, border: "1px solid var(--cream-border)", background: isActive ? "var(--cream-card)" : "transparent", overflow: "hidden", transition: "all 0.15s", flexShrink: 0 }}>
+                        {isActive && statements.length > 1 && (
+                          <button onClick={() => moveStatement(i, -1)} disabled={i === 0} style={{ padding: "5px 6px 5px 10px", background: "transparent", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>‹</button>
+                        )}
+                        {renamingStmt?.idx === i ? (
+                          <input
+                            autoFocus
+                            value={renamingStmt.value}
+                            onChange={e => setRenamingStmt(r => ({ ...r, value: e.target.value }))}
+                            onBlur={async () => {
+                              const newLabel = renamingStmt.value.trim();
+                              if (newLabel && newLabel !== s.label) {
+                                await supabase.from("statements").update({ label: newLabel }).eq("id", s.id);
+                                setStatements(prev => prev.map((st, si) => si === i ? { ...st, label: newLabel } : st));
+                              }
+                              setRenamingStmt(null);
+                            }}
+                            onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setRenamingStmt(null); }}
+                            style={{ padding: "3px 8px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--cream)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", outline: "none", width: Math.max(80, renamingStmt.value.length * 7) + "px", letterSpacing: "0.05em" }}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => { setActiveStmt(i); setPeriod({ type: 'statement' }); setActiveCategory(null); setSearch(""); setAiStatus(null); }}
+                            onDoubleClick={() => isActive && setRenamingStmt({ idx: i, value: s.label })}
+                            title={isActive ? "Double-click to rename" : ""}
+                            style={{ padding: isActive && statements.length > 1 ? "5px 4px" : "5px 14px", background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: isActive ? "var(--ink)" : "var(--ink-faint)", letterSpacing: "0.05em", whiteSpace: "nowrap" }}
+                          >{s.label}</button>
+                        )}
+                        {isActive && statements.length > 1 && (
+                          <button onClick={() => moveStatement(i, 1)} disabled={i === statements.length - 1} style={{ padding: "5px 6px", background: "transparent", border: "none", cursor: i === statements.length - 1 ? "default" : "pointer", color: i === statements.length - 1 ? "var(--cream-border)" : "var(--ink-faint)", fontSize: 10 }}>›</button>
+                        )}
+                        <button onClick={() => removeStatement(i)} style={{ padding: "5px 10px 5px 4px", background: "transparent", border: "none", cursor: "pointer", color: isActive ? "var(--ink-faint)" : "rgba(0,0,0,0.15)", fontSize: 11 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+                <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                  {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
+                </button>
+                {customRange && <button onClick={() => setPeriod({ type: 'fy', anchor: new Date() })} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
+                <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="dual-bento fade-up" style={{ animationDelay: "0.1s" }}>
           {/* CATEGORY */}
-          <div className="stat-card" style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Spend by Category</div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="stat-card" style={{ padding: "22px 28px 20px", display: "flex", flexDirection: "column" }}>
+            <div className="section-head">
+              <div className="section-head-left">
+                <h3>Categories</h3>
+                <p className="sub">{summary.sorted.length} categor{summary.sorted.length === 1 ? "y" : "ies"}, sorted by share of total outflow.</p>
+              </div>
+              <div className="section-head-right">
                 {activeCategory && <button onClick={() => setActiveCategory(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--red)", letterSpacing: "0.04em" }}>Clear ✕</button>}
-                <button onClick={handleAICategorise} disabled={aiLoading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 100, background: aiLoading ? "transparent" : "var(--cream)", border: `1px solid ${aiLoading ? "rgba(99,102,241,0.2)" : "var(--cream-border)"}`, color: aiLoading ? "#6366f1" : "var(--ink-mid)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", cursor: aiLoading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
-                  {aiLoading ? <><div className="ai-spinner-sm" style={{ borderTopColor: "#6366f1", borderColor: "rgba(99,102,241,0.2)" }} /> Thinking…</> : "✦ AI Categorise"}
+                <button onClick={handleAICategorise} disabled={aiLoading} className="ai-btn">
+                  {aiLoading ? <><div className="ai-spinner-sm" style={{ borderTopColor: "#6366f1", borderColor: "rgba(99,102,241,0.2)" }} /> Thinking…</> : <>✦ AI Categorise</>}
                 </button>
               </div>
             </div>
@@ -2104,17 +2100,15 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
 
           {/* TRANSACTIONS */}
           <div className="stat-card" style={{ overflow: "hidden", padding: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--cream-border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>
-                Transactions {activeCategory ? <span style={{ color: "var(--red)", marginLeft: 8 }}>{activeCategory}</span> : null}
-              </div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--ink-faint)", marginTop: 3 }}>{filtered.length} of {transactions.length}</div>
+          <div className="section-head" style={{ padding: "22px 28px 16px", margin: 0 }}>
+            <div className="section-head-left">
+              <h3>Transactions {activeCategory ? <span style={{ color: "var(--red)", fontSize: 16, fontWeight: 500, marginLeft: 6 }}>· {activeCategory}</span> : null}</h3>
+              <p className="sub">{filtered.length === transactions.length ? `${transactions.length} transactions in this period.` : `${filtered.length} of ${transactions.length} transactions match your filter.`}</p>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="section-head-right stack">
               {txView === "list" && <input type="text" className="search-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" />}
               <div style={{ display: "flex", gap: 4 }}>
-                {[["list","List"],["calendar","Calendar"]].map(([v,lbl]) => <button key={v} onClick={() => { setTxView(v); setSelectedDay(null); }} style={{ padding: "4px 12px", borderRadius: 100, border: "1px solid var(--cream-border)", background: txView===v?"var(--cream-card)":"transparent", color: txView===v?"var(--ink)":"var(--ink-faint)", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer", transition: "all 0.15s" }}>{lbl}</button>)}
+                {[["list","List"],["calendar","Calendar"]].map(([v,lbl]) => <button key={v} onClick={() => { setTxView(v); setSelectedDay(null); }} style={{ padding: "5px 14px", borderRadius: 100, border: "1px solid var(--cream-border)", background: txView===v?"var(--cream)":"transparent", color: txView===v?"var(--ink)":"var(--ink-faint)", fontFamily: "'Inter',sans-serif", fontSize: 10.5, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>{lbl}</button>)}
               </div>
             </div>
           </div>
@@ -2607,6 +2601,17 @@ export default function App() {
         .dual-bento { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
         .dual-bento > .stat-card { margin: 0; min-width: 0; }
         @media (max-width: 1100px) { .dual-bento { grid-template-columns: 1fr; } }
+
+        /* v3 section heads (Category + Transactions) */
+        .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--cream-border); margin-bottom: 20px; }
+        .section-head-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+        .section-head-left h3 { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.018em; color: var(--ink); line-height: 1.2; margin: 0; }
+        .section-head-left .sub { font-family: 'Noto Serif', serif; font-size: 13.5px; color: var(--ink-mid); line-height: 1.5; margin: 0; }
+        .section-head-right { flex-shrink: 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .section-head-right.stack { flex-direction: column; align-items: flex-end; gap: 8px; flex-wrap: nowrap; }
+        .ai-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 100px; background: var(--cream); border: 1px solid var(--cream-border-strong); color: var(--ink-mid); font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: -0.005em; cursor: pointer; transition: all 0.2s; }
+        .ai-btn:hover:not(:disabled) { color: var(--red); border-color: rgba(225,53,64,0.4); transform: translateY(-1px); }
+        .ai-btn:disabled { cursor: not-allowed; opacity: 0.8; }
         .donut-container { width: 200px; height: 200px; }
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
