@@ -3098,7 +3098,7 @@ export default function App() {
         .goal-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
         .goal-period { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; white-space: nowrap; }
         .goal-head { flex-wrap: wrap; row-gap: 8px; }
-        .goal-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; flex: 1; position: relative; z-index: 1; padding: 12px 0; }
+        .goal-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; flex: 1; position: relative; z-index: 1; padding: 32px 0 12px; }
         .goal-donut { width: 220px; height: 220px; flex-shrink: 0; position: relative; }
         .goal-donut svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
         .goal-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
