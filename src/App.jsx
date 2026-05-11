@@ -1984,7 +1984,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
 
         {/* ── GOAL / RECEIVABLES / UPCOMING TRIO ── */}
         <div className="duo-row fade-up" style={{ animationDelay: "0.09s" }}>
-          <GoalCard monthlyIncome={monthlyIncome} />
+          <GoalCard allTransactions={allTransactions} />
           <ReceivablesCard />
           <UpcomingCard />
         </div>
@@ -2476,21 +2476,48 @@ function TopMoversRow({ allTransactions }) {
 /* ─── GOAL / RECEIVABLES / UPCOMING (trio) ─── */
 const GOAL_MONTHLY = 200000; // R200k — matches the goal pill
 
-function GoalCard({ monthlyIncome }) {
-  const actual = monthlyIncome.lastAmount;
-  const pct = Math.min(100, (actual / GOAL_MONTHLY) * 100);
-  const delta = actual - GOAL_MONTHLY;
+const GOAL_PAGES = 3; // browse the last 3 completed months
+
+function GoalCard({ allTransactions }) {
+  // offset 0 = last completed month, 1 = 2 months ago, 2 = 3 months ago
+  const [offset, setOffset] = useState(0);
+  const page = useMemo(() => {
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth() - 1 - offset, 1);
+    const tm = target.getMonth(), ty = target.getFullYear();
+    let actual = 0, count = 0;
+    for (const t of allTransactions) {
+      if (!t.isCredit) continue;
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      if (d.getMonth() === tm && d.getFullYear() === ty) { actual += t.amount; count++; }
+    }
+    return { actual, count, label: `${ALL_MONTHS[tm]} ${ty}` };
+  }, [allTransactions, offset]);
+
+  const pct = Math.min(100, (page.actual / GOAL_MONTHLY) * 100);
+  const delta = page.actual - GOAL_MONTHLY;
   const hitTarget = delta >= 0;
 
   const radius = 60;
   const circ = 2 * Math.PI * radius;
   const dash = (pct / 100) * circ;
 
+  const canOlder = offset < GOAL_PAGES - 1;
+  const canNewer = offset > 0;
+
   return (
     <section className="goal-card">
       <div className="goal-head">
         <span className="goal-eyebrow">Monthly goal · gross revenue</span>
-        <span className="goal-period">{monthlyIncome.lastLabel} · final</span>
+        <div className="goal-nav">
+          <button onClick={() => setOffset(o => o + 1)} disabled={!canOlder} aria-label="Older month">
+            <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill="currentColor"/></svg>
+          </button>
+          <span className="goal-period">{page.label} · final</span>
+          <button onClick={() => setOffset(o => o - 1)} disabled={!canNewer} aria-label="Newer month">
+            <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill="currentColor"/></svg>
+          </button>
+        </div>
       </div>
       <div className="goal-body">
         <div className="goal-donut">
@@ -2502,7 +2529,7 @@ function GoalCard({ monthlyIncome }) {
               </linearGradient>
             </defs>
             <circle cx="75" cy="75" r={radius} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="10"/>
-            <circle cx="75" cy="75" r={radius} fill="none" stroke="url(#goal-grad)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${dash} ${circ - dash}`}/>
+            <circle cx="75" cy="75" r={radius} fill="none" stroke="url(#goal-grad)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${dash} ${circ - dash}`} style={{ transition: "stroke-dasharray 0.4s ease" }}/>
           </svg>
           <div className="goal-donut-center">
             <div className="goal-donut-pct">{pct.toFixed(1)}%</div>
@@ -2510,13 +2537,18 @@ function GoalCard({ monthlyIncome }) {
           </div>
         </div>
         <div className="goal-info">
-          <div className="goal-actual">{fmt(actual, true)}</div>
+          <div className="goal-actual">{fmt(page.actual, true)}</div>
           <div className="goal-target">of <b>{fmt(GOAL_MONTHLY, true)}</b> target</div>
         </div>
       </div>
       <div className="goal-foot">
-        <span>{monthlyIncome.lastCount} credit{monthlyIncome.lastCount === 1 ? "" : "s"} in {monthlyIncome.lastLabel}</span>
+        <span>{page.count} credit{page.count === 1 ? "" : "s"} in {page.label}</span>
         <span>{hitTarget ? "Surplus" : "Short"} by <span className="pct">{fmt(Math.abs(delta), true)}</span></span>
+      </div>
+      <div className="goal-dots">
+        {Array.from({ length: GOAL_PAGES }, (_, i) => (
+          <button key={i} className={`goal-dot${i === offset ? " active" : ""}`} onClick={() => setOffset(i)} aria-label={`Page ${i + 1}`} />
+        ))}
       </div>
     </section>
   );
@@ -2968,6 +3000,14 @@ export default function App() {
         .goal-target b { color: white; font-weight: 600; }
         .goal-foot { display: flex; flex-direction: column; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; position: relative; z-index: 1; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
         .goal-foot .pct { color: var(--coral); font-weight: 700; }
+        .goal-nav { display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
+        .goal-nav button { background: transparent; border: none; cursor: pointer; padding: 2px; color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; line-height: 1; transition: color 0.15s; }
+        .goal-nav button:hover:not(:disabled) { color: white; }
+        .goal-nav button:disabled { opacity: 0.25; cursor: default; }
+        .goal-dots { display: flex; gap: 6px; justify-content: center; position: relative; z-index: 1; margin-top: -2px; }
+        .goal-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.18); border: none; cursor: pointer; padding: 0; transition: all 0.2s; }
+        .goal-dot:hover { background: rgba(255,255,255,0.4); }
+        .goal-dot.active { background: var(--coral); transform: scale(1.2); }
 
         /* Receivables card */
         .recv-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-2xl); padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; }
