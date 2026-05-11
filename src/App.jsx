@@ -1295,10 +1295,14 @@ function PeriodControl({ period, setPeriod, onOpenCustom }) {
         })}
       </div>
       {canStep && (
-        <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--cream-border)", borderRadius: 100, padding: "2px 4px", background: "#FDF8F5" }}>
-          <button onClick={() => step(-1)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1 }}>‹</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--cream-border)", borderRadius: 100, padding: "2px 6px", background: "#FDF8F5" }}>
+          <button onClick={() => step(-1)} aria-label="Previous" style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 4px", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-mid)" }}>
+            <svg width="9" height="9" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill="currentColor"/></svg>
+          </button>
           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.05em", minWidth: 70, textAlign: "center" }}>{label}</span>
-          <button onClick={() => step(1)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1 }}>›</button>
+          <button onClick={() => step(1)} aria-label="Next" style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px 4px", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-mid)" }}>
+            <svg width="9" height="9" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill="currentColor"/></svg>
+          </button>
         </div>
       )}
     </div>
@@ -2513,7 +2517,7 @@ function GoalCard({ allTransactions }) {
           <button onClick={() => setOffset(o => o + 1)} disabled={!canOlder} aria-label="Older month">
             <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill="currentColor"/></svg>
           </button>
-          <span className="goal-period">{page.label} · final</span>
+          <span className="goal-period">{page.label}</span>
           <button onClick={() => setOffset(o => o - 1)} disabled={!canNewer} aria-label="Newer month">
             <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill="currentColor"/></svg>
           </button>
