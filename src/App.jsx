@@ -2736,7 +2736,7 @@ function Sidebar({ open, onClose }) {
                 <div className="build-side-row">
                   <svg className="build-side-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
                   <span className="build-side-title">{item.title}</span>
-                  <span className="build-side-chev">›</span>
+                  <svg className="build-side-chev" width="9" height="9" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill="currentColor"/></svg>
                 </div>
                 <div className="build-side-body">
                   <div className="build-side-desc">{item.desc}</div>
@@ -2753,7 +2753,7 @@ function Sidebar({ open, onClose }) {
             <span className="ai-insight-label">Claude noticed</span>
           </div>
           <div className="ai-insight-content">
-            Your "Other" bucket is 36% of spend — almost certainly miscategorised transfers and bank fees.
+            Your "Other" bucket is 36% of spend, almost certainly miscategorised transfers and bank fees.
           </div>
           <button className="ai-insight-action">Re-categorise →</button>
         </div>
@@ -3136,7 +3136,7 @@ export default function App() {
         .build-side-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
         .build-side-icon { width: 14px; height: 14px; color: var(--ink-light); flex-shrink: 0; transition: color 0.15s; }
         .build-side-title { flex: 1; font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 500; color: var(--ink-mid); letter-spacing: -0.005em; transition: color 0.15s; }
-        .build-side-chev { color: var(--ink-faint); font-size: 11px; transition: transform 0.25s; line-height: 1; }
+        .build-side-chev { color: var(--ink-faint); transition: transform 0.25s; flex-shrink: 0; }
         .build-side-item:hover .build-side-icon, .build-side-item:hover .build-side-title { color: var(--ink); }
         .build-side-item.open .build-side-icon, .build-side-item.open .build-side-title { color: var(--ink); }
         .build-side-item.open .build-side-chev { transform: rotate(90deg); }
