@@ -2474,13 +2474,10 @@ function TopMoversRow({ allTransactions, monthlyIncome }) {
 const GOAL_MONTHLY = 200000; // R200k — matches the goal pill
 
 function GoalCard({ monthlyIncome }) {
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const actual = monthlyIncome.thisAmount;
+  const actual = monthlyIncome.lastAmount;
   const pct = Math.min(100, (actual / GOAL_MONTHLY) * 100);
-  const projected = dayOfMonth > 0 ? (actual / dayOfMonth) * daysInMonth : 0;
-  const shortBy = Math.max(0, GOAL_MONTHLY - projected);
+  const delta = actual - GOAL_MONTHLY;
+  const hitTarget = delta >= 0;
 
   const radius = 60;
   const circ = 2 * Math.PI * radius;
@@ -2490,7 +2487,7 @@ function GoalCard({ monthlyIncome }) {
     <section className="goal-card">
       <div className="goal-head">
         <span className="goal-eyebrow">Monthly goal · gross revenue</span>
-        <span className="goal-period">{monthlyIncome.thisLabel} · {dayOfMonth}d in</span>
+        <span className="goal-period">{monthlyIncome.lastLabel} · final</span>
       </div>
       <div className="goal-body">
         <div className="goal-donut">
@@ -2506,7 +2503,7 @@ function GoalCard({ monthlyIncome }) {
           </svg>
           <div className="goal-donut-center">
             <div className="goal-donut-pct">{pct.toFixed(1)}%</div>
-            <div className="goal-donut-label">to target</div>
+            <div className="goal-donut-label">of target</div>
           </div>
         </div>
         <div className="goal-info">
@@ -2515,8 +2512,8 @@ function GoalCard({ monthlyIncome }) {
         </div>
       </div>
       <div className="goal-foot">
-        <span>Pace: {fmt(projected, true)} projected</span>
-        <span>Short by <span className="pct">{fmt(shortBy, true)}</span></span>
+        <span>{monthlyIncome.lastCount} credit{monthlyIncome.lastCount === 1 ? "" : "s"} in {monthlyIncome.lastLabel}</span>
+        <span>{hitTarget ? "Surplus" : "Short"} by <span className="pct">{fmt(Math.abs(delta), true)}</span></span>
       </div>
     </section>
   );
