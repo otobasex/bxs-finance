@@ -2603,7 +2603,7 @@ function GoalCard({ allTransactions }) {
   return (
     <section className="goal-card">
       <div className="goal-head">
-        <span className="goal-eyebrow">Monthly goal · gross revenue</span>
+        <span className="goal-eyebrow">Monthly goal</span>
         <div className="goal-nav">
           <button onClick={() => setOffset(o => o + 1)} disabled={!canOlder} aria-label="Older month">
             <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill="currentColor"/></svg>
@@ -2637,8 +2637,11 @@ function GoalCard({ allTransactions }) {
         </div>
       </div>
       <div className="goal-foot">
-        <span>{page.count} credit{page.count === 1 ? "" : "s"} in {page.label}</span>
-        <span>{hitTarget ? "Surplus" : "Short"} by <span className="pct" style={hitTarget ? { color: "#7DD4A2" } : undefined}>{fmt(Math.abs(delta), true)}</span></span>
+        <div className="goal-foot-left">
+          <span>{page.count} credit{page.count === 1 ? "" : "s"} in {page.label}</span>
+          <span>{hitTarget ? "Surplus" : "Short"} by <span className="pct" style={hitTarget ? { color: "#7DD4A2" } : undefined}>{fmt(Math.abs(delta), true)}</span></span>
+        </div>
+        <span className="goal-revenue-tag">Gross revenue</span>
       </div>
       <div className="goal-dots">
         {Array.from({ length: GOAL_PAGES }, (_, i) => (
@@ -3109,8 +3112,10 @@ export default function App() {
         .goal-actual { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.028em; color: white; line-height: 1; }
         .goal-target { font-family: 'Inter', sans-serif; font-size: 12.5px; color: rgba(255,255,255,0.55); letter-spacing: -0.005em; }
         .goal-target b { color: white; font-weight: 600; }
-        .goal-foot { display: flex; flex-direction: column; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; position: relative; z-index: 1; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .goal-foot { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-end; gap: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; position: relative; z-index: 1; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .goal-foot-left { display: flex; flex-direction: column; gap: 2px; }
         .goal-foot .pct { color: var(--coral); font-weight: 700; }
+        .goal-revenue-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.55); text-align: right; white-space: nowrap; }
         .goal-nav { display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
         .goal-nav button { background: transparent; border: none; cursor: pointer; padding: 2px; color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; line-height: 1; transition: color 0.15s; }
         .goal-nav button:hover:not(:disabled) { color: white; }
