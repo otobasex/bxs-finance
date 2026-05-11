@@ -2697,21 +2697,29 @@ function ReceivablesCard() {
   );
 }
 
-// TODO: replace with the user's actual fixed-expense list
-const MOCK_UPCOMING = [
-  { name: "Rent · Sandton",          amount: 12500, day: 1,  recurring: true,  label: "Recurring" },
-  { name: "FNB Service Fee",         amount: 350,   day: 5,  recurring: true,  label: "Recurring" },
-  { name: "Allan Gray Investment",   amount: 3500,  day: 8,  recurring: true,  label: "Recurring" },
-  { name: "Provisional Tax · Q1",    amount: 1200,  day: 15, recurring: false, label: "Due" },
+// Mirrors the Notion "Business Subscriptions (Monthly)" DB. All recurring on
+// the day-of-month from Notion. Edit here when you add/remove a subscription.
+const SUBSCRIPTIONS = [
+  { name: "Apple One",  amount: 229.99, day: 1,  label: "Recurring" },
+  { name: "Microsoft",  amount: 109,    day: 1,  label: "Recurring" },
+  { name: "Google One", amount: 44.20,  day: 1,  label: "Recurring" },
+  { name: "Flickr",     amount: 180,    day: 5,  label: "Recurring" },
+  { name: "MailChimp",  amount: 550,    day: 5,  label: "Recurring" },
+  { name: "Notion",     amount: 100,    day: 7,  label: "Recurring" },
+  { name: "ChatGPT",    amount: 131,    day: 11, label: "Recurring" },
+  { name: "Adobe",      amount: 650,    day: 14, label: "Recurring" },
+  { name: "Claude AI",  amount: 1643,   day: 14, label: "Recurring" },
+  { name: "Freepik",    amount: 328,    day: 22, label: "Recurring" },
 ];
+
+const UPCOMING_HORIZON_DAYS = 30;
 
 function UpcomingCard() {
   const today = new Date();
   const thisY = today.getFullYear();
   const thisM = today.getMonth();
-  const sevenDays = 7;
-  const horizon = new Date(thisY, thisM, today.getDate() + sevenDays);
-  const upcoming = MOCK_UPCOMING.map(c => {
+  const horizon = new Date(thisY, thisM, today.getDate() + UPCOMING_HORIZON_DAYS);
+  const upcoming = SUBSCRIPTIONS.map(c => {
     let d = new Date(thisY, thisM, c.day);
     if (d < today) d = new Date(thisY, thisM + 1, c.day);
     return { ...c, date: d };
@@ -2723,7 +2731,7 @@ function UpcomingCard() {
     <section className="upcoming-card">
       <div className="upcoming-head">
         <div className="upcoming-title">Upcoming</div>
-        <div className="upcoming-meta-line">{upcoming.length} charges · next 7d</div>
+        <div className="upcoming-meta-line">{upcoming.length} charges · next {UPCOMING_HORIZON_DAYS}d</div>
       </div>
       <div className="upcoming-total">
         <span className="amt">−{fmt(total, true)}</span>
