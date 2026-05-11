@@ -2064,6 +2064,9 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           </div>
         </div>
 
+        {/* ── TOP MOVERS ── */}
+        <TopMoversRow allTransactions={allTransactions} />
+
         {/* ── YEAR OVERVIEW CHART ── */}
         <YearChart
           allTransactions={allTransactions}
@@ -2074,9 +2077,6 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
           mode={chartMode}
           dark={dark}
         />
-
-        {/* ── TOP MOVERS ── */}
-        <TopMoversRow allTransactions={allTransactions} />
 
         {/* ── GOAL / RECEIVABLES / UPCOMING TRIO ── */}
         <div className="duo-row fade-up" style={{ animationDelay: "0.09s" }}>
