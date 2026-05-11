@@ -729,35 +729,20 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
 
   return (
     <div className="year-chart-v3" style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--r-2xl)", padding: "26px 30px 20px", marginBottom: 14 }}>
-      {/* Header */}
+      {/* Header — totals only; period picker above drives the FY shown */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, position: "relative", zIndex: 1, gap: 28, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
-          {/* FY Navigator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={prevFY} disabled={!canGoBack} style={{ background: "transparent", border: "none", cursor: canGoBack ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoBack ? 1 : 0.2, transition: "opacity 0.15s" }}>
-              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill={arrowFill}/></svg>
-            </button>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: fyColor }}>
-              {mode === 'cy' ? `CY ${yearAnchor}` : `FY ${yearAnchor}/${yearAnchor + 1}`}
-            </div>
-            <button onClick={nextFY} disabled={!canGoFwd} style={{ background: "transparent", border: "none", cursor: canGoFwd ? "pointer" : "default", padding: "0 2px", lineHeight: 1, opacity: canGoFwd ? 1 : 0.2, transition: "opacity 0.15s" }}>
-              <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="2,1 8,5 2,9" fill={arrowFill}/></svg>
-            </button>
+        <div style={{ display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Income</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: incomeCol }}>{fmt(totalIncome, true)}</span>
           </div>
-          {/* Totals */}
-          <div style={{ display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Income</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: incomeCol }}>{fmt(totalIncome, true)}</span>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Spend</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: spendCol }}>{fmt(totalSpend, true)}</span>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Net</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: netCol(totalIncome - totalSpend) }}>{fmt(totalIncome - totalSpend, true)}</span>
-            </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Spend</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: spendCol }}>{fmt(totalSpend, true)}</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Net</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: netCol(totalIncome - totalSpend) }}>{fmt(totalIncome - totalSpend, true)}</span>
           </div>
         </div>
         {selectedMonth && (
@@ -1570,6 +1555,27 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     return { income, spend, net: income - spend, sorted: Object.entries(byCategory).sort((a, b) => b[1] - a[1]) };
   }, [transactions]);
 
+  /* Calendar-month income relative to today — independent of the period picker. */
+  const monthlyIncome = useMemo(() => {
+    const now = new Date();
+    const thisM = now.getMonth(), thisY = now.getFullYear();
+    const lastDate = new Date(thisY, thisM - 1, 1);
+    const lastM = lastDate.getMonth(), lastY = lastDate.getFullYear();
+    let thisAmount = 0, lastAmount = 0, thisCount = 0, lastCount = 0;
+    for (const t of allTransactions) {
+      if (!t.isCredit) continue;
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      const m = d.getMonth(), y = d.getFullYear();
+      if (m === thisM && y === thisY) { thisAmount += t.amount; thisCount++; }
+      else if (m === lastM && y === lastY) { lastAmount += t.amount; lastCount++; }
+    }
+    return {
+      thisAmount, thisCount, thisLabel: `${ALL_MONTHS[thisM]} ${thisY}`,
+      lastAmount, lastCount, lastLabel: `${ALL_MONTHS[lastM]} ${lastY}`,
+      delta: lastAmount === 0 ? null : ((thisAmount - lastAmount) / lastAmount) * 100,
+    };
+  }, [allTransactions]);
+
   const filtered = useMemo(() => transactions.filter(t => {
     const c = t.manualCategory || t.category;
     if (activeCategory && c !== activeCategory) return false;
@@ -1883,7 +1889,11 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
           setPeriod={(p) => { setPeriod(p); setActiveCategory(null); setSearch(""); }}
           onOpenCustom={() => setShowCustomRange(true)}
         />
-        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", paddingLeft: 4 }}>{contextLabel}</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: "var(--ink-faint)", letterSpacing: "0.1em", textTransform: "uppercase", paddingLeft: 4 }}>{contextLabel}</div>
+        <div className="goal-pill" style={{ marginLeft: "auto" }}>
+          <span className="goal-label">Goal:</span>
+          <span>A systems-driven business grossing <span className="goal-amount">R200k/month</span>.</span>
+        </div>
       </div>
 
       {/* ── YEAR OVERVIEW CHART — always visible when data exists ── */}
@@ -2012,6 +2022,33 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
               </div>
               <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend ratio</div>
             </div>
+          </div>
+        </div>
+
+        {/* MONTHLY INCOME COMPARISON — independent of period picker */}
+        <div className="fade-up bento-month-pair" style={{ animationDelay: "0.08s" }}>
+          <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #C7EBE0 0%, #E3F1F0 100%)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.55)" }}>This Month Income</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", letterSpacing: "0.06em" }}>· {monthlyIncome.thisLabel}</span>
+            </div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(monthlyIncome.thisAmount, true)}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.45)" }}>
+              <span>{monthlyIncome.thisCount} credits</span>
+              {monthlyIncome.delta !== null && (
+                <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, color: monthlyIncome.delta >= 0 ? "#1F8A55" : "var(--red)" }}>
+                  {monthlyIncome.delta >= 0 ? "↑" : "↓"} {Math.abs(monthlyIncome.delta).toFixed(0)}% vs last
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "var(--cream-card)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Last Month Income</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>· {monthlyIncome.lastLabel}</span>
+            </div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "var(--ink)", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(monthlyIncome.lastAmount, true)}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", marginTop: 14 }}>{monthlyIncome.lastCount} credits</div>
           </div>
         </div>
 
@@ -2354,6 +2391,9 @@ function Sidebar({ open, onClose }) {
             </svg>
           </div>
           <div className="studio-name">Money OS</div>
+          <button className="sidebar-close" onClick={onClose} aria-label="Collapse sidebar" title="Collapse">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
         </div>
 
         <div className="studio-section">
@@ -2411,7 +2451,14 @@ export default function App() {
   const [showCatManager, setShowCatManager] = useState(false);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [view, setView] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bxs-sidebar-open");
+      if (saved !== null) return saved === "1";
+    } catch {}
+    return typeof window !== "undefined" ? window.innerWidth >= 1081 : true;
+  });
+  useEffect(() => { try { localStorage.setItem("bxs-sidebar-open", sidebarOpen ? "1" : "0"); } catch {} }, [sidebarOpen]);
   const catMap = useMemo(() => buildCatMap(categories), [categories]);
 
   // Persist preferences
@@ -2586,7 +2633,8 @@ export default function App() {
         .nav-btn.active { background: var(--charcoal); border-color: var(--charcoal); color: white; }
 
         /* ─── V3 SHELL ─── */
-        .app-shell { display: grid; grid-template-columns: 244px 1fr; gap: 20px; align-items: start; }
+        .app-shell { display: grid; grid-template-columns: 244px 1fr; gap: 20px; align-items: start; transition: grid-template-columns 0.25s ease; }
+        .app-shell.collapsed { grid-template-columns: 1fr; }
         .main-column { min-width: 0; }
         @media (max-width: 1080px) {
           .app-shell { grid-template-columns: 1fr; }
@@ -2597,8 +2645,22 @@ export default function App() {
         }
         @media (min-width: 1081px) {
           .sidebar-backdrop { display: none; }
-          .nav-hamburger { display: none !important; }
+          .app-shell:not(.collapsed) .nav-hamburger { display: none !important; }
+          .app-shell.collapsed .studio-sidebar { display: none; }
+          .sidebar-close { display: flex !important; }
         }
+        .sidebar-close { display: none; background: transparent; border: 1px solid var(--cream-border); border-radius: 100px; width: 26px; height: 26px; align-items: center; justify-content: center; cursor: pointer; color: var(--ink-faint); flex-shrink: 0; margin-left: auto; }
+        .sidebar-close:hover { background: var(--cream); color: var(--ink); }
+        .sidebar-close svg { width: 12px; height: 12px; }
+
+        /* Goal pill */
+        .goal-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 100px; background: var(--cream-card); border: 1px solid var(--cream-border); font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink-mid); letter-spacing: -0.005em; line-height: 1; }
+        .goal-pill .goal-label { font-weight: 700; color: var(--ink); }
+        .goal-pill .goal-amount { color: var(--red); font-weight: 600; }
+
+        /* Monthly income comparison row */
+        .bento-month-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        @media (max-width: 639px) { .bento-month-pair { grid-template-columns: 1fr; } }
 
         /* ─── SIDEBAR ─── */
         .studio-sidebar { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; padding: 12px; background: var(--sidebar-grad); border: 1px solid var(--cream-border); border-radius: 20px; max-height: calc(100vh - 32px); overflow-y: auto; }
@@ -2666,7 +2728,7 @@ export default function App() {
       `}</style>
 
       <div className={dark ? "dark" : ""} style={{ background: "var(--cream)", minHeight: "100vh", padding: "24px 20px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
-        <div className="app-shell" style={{ maxWidth: 1480, margin: "0 auto" }}>
+        <div className={`app-shell${sidebarOpen ? "" : " collapsed"}`} style={{ maxWidth: 1480, margin: "0 auto" }}>
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
           <main className="main-column">
