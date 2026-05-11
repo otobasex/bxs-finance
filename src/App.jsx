@@ -2739,15 +2739,17 @@ function UpcomingCard() {
   return (
     <section className="upcoming-card">
       <div className="upcoming-head">
-        <div className="upcoming-title">Subscriptions</div>
-        <div className="upcoming-meta-line">{upcoming.length} charges · next {UPCOMING_HORIZON_DAYS}d</div>
-      </div>
-      <div className="upcoming-total">
-        <span className="amt">−{fmt(total, true)}</span>
-        <span className="sub">total this week</span>
+        <div className="upcoming-head-left">
+          <div className="upcoming-title">Subscriptions</div>
+          <div className="upcoming-meta-line">{upcoming.length} charges · next {UPCOMING_HORIZON_DAYS}d</div>
+        </div>
+        <div className="upcoming-head-right">
+          <span className="amt">−{fmt(total, true)}</span>
+          <span className="sub">total this month</span>
+        </div>
       </div>
       <div className="upcoming-list">
-        {upcoming.length === 0 && (<div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", padding: "8px 0" }}>Nothing due in the next 7 days.</div>)}
+        {upcoming.length === 0 && (<div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--ink-faint)", padding: "8px 0" }}>Nothing due in the next {UPCOMING_HORIZON_DAYS} days.</div>)}
         {upcoming.map((c, i) => (
           <div key={i} className="upcoming-row">
             <div className="upcoming-day">{DAYS[c.date.getDay()]}<span className="num">{c.date.getDate()}</span></div>
@@ -3146,12 +3148,13 @@ export default function App() {
 
         /* Upcoming charges */
         .upcoming-card { background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: var(--r-2xl); padding: 22px 22px 16px; display: flex; flex-direction: column; gap: 12px; }
-        .upcoming-head { display: flex; align-items: baseline; justify-content: space-between; }
+        .upcoming-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--cream-border); }
+        .upcoming-head-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .upcoming-head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; flex-shrink: 0; }
         .upcoming-title { font-family: 'General Sans', 'Inter', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.012em; color: var(--ink); }
         .upcoming-meta-line { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
-        .upcoming-total { display: flex; align-items: baseline; gap: 8px; padding: 6px 0 4px; border-bottom: 1px solid var(--cream-border); margin-bottom: 2px; }
-        .upcoming-total .amt { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.022em; color: var(--ink); line-height: 1; }
-        .upcoming-total .sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
+        .upcoming-head-right .amt { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.022em; color: var(--ink); line-height: 1; }
+        .upcoming-head-right .sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
         .upcoming-list { display: flex; flex-direction: column; }
         .upcoming-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--cream-border); }
         .upcoming-row:last-child { border-bottom: none; }
