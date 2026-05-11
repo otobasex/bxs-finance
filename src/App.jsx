@@ -3123,7 +3123,7 @@ export default function App() {
         .recv-head { display: flex; align-items: baseline; justify-content: space-between; }
         .recv-title { font-family: 'General Sans', 'Inter', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.012em; color: var(--ink); }
         .recv-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
-        .recv-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .recv-stats { display: grid; grid-template-columns: 1fr; gap: 8px; }
         .recv-stat { background: var(--cream); border: 1px solid var(--cream-border); border-radius: var(--r-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
         .recv-stat .label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
         .recv-stat .value { font-family: 'General Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.022em; color: var(--ink); line-height: 1; }
