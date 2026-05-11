@@ -1326,9 +1326,6 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
   const [loadError, setLoadError]       = useState("");
   const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0 });
 
-  // Shared FY year for chart views
-  const [sharedFYYear, setSharedFYYear]   = useState(() => currentFYStartYear());
-
   // Time period filter — single source of truth for bento + transaction list
   // type: 'fy' | 'cy' | 'month' | 'all' | 'custom' | 'statement'
   //   fy/cy:    anchor picks which year; FY runs Mar→Feb
@@ -1529,6 +1526,30 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
     if (period.type !== 'custom') return null;
     return { from: period.from, to: period.to };
   }, [period]);
+
+  /* Which FY the YearChart should display, derived from period. */
+  const displayedFY = useMemo(() => {
+    if (period.type === 'statement') {
+      // Use the FY containing the active statement's earliest tx, fallback to current FY
+      const stmt = statements[activeStmt] || statements[0];
+      const firstTx = stmt?.transactions?.[0];
+      if (firstTx) {
+        const d = firstTx.date instanceof Date ? firstTx.date : new Date(firstTx.date);
+        return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1;
+      }
+      return currentFYStartYear();
+    }
+    if (period.type === 'all') return currentFYStartYear();
+    if (period.type === 'custom') {
+      if (!period.from) return currentFYStartYear();
+      const d = new Date(period.from);
+      return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1;
+    }
+    const a = period.anchor instanceof Date ? period.anchor : new Date(period.anchor);
+    if (period.type === 'cy') return a.getFullYear(); // CY 2024 → show FY starting in 2024
+    // fy or month
+    return a.getMonth() >= 2 ? a.getFullYear() : a.getFullYear() - 1;
+  }, [period, statements, activeStmt]);
 
   const summary = useMemo(() => {
     const income = transactions.filter(t => t.isCredit).reduce((s, t) => s + t.amount, 0);
@@ -1854,32 +1875,20 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", paddingLeft: 4 }}>{contextLabel}</div>
       </div>
 
-      {/* ── CALENDAR MODE: YEAR CHART ── */}
-      {navMode === "calendar" && statements.length > 0 && (
+      {/* ── YEAR OVERVIEW CHART — always visible when data exists ── */}
+      {statements.length > 0 && (
         <YearChart
           allTransactions={allTransactions}
           selectedMonth={selectedMonth}
-          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: 'fy', anchor: new Date() }); setActiveCategory(null); setSearch(""); }}
-          sharedFYYear={sharedFYYear}
-          onFYChange={setSharedFYYear}
+          onSelectMonth={m => { setPeriod(m ? { type: 'month', anchor: new Date(m.year, m.month, 15) } : { type: 'fy', anchor: new Date(displayedFY, 6, 1) }); setActiveCategory(null); setSearch(""); }}
+          sharedFYYear={displayedFY}
+          onFYChange={(y) => setPeriod({ type: 'fy', anchor: new Date(y, 6, 1) })}
           dark={dark}
         />
       )}
 
-      {/* ── STATEMENT MODE: YEAR CHART + DAILY CHART ── */}
-      {navMode === "statement" && allTransactions.length > 0 && (
-        <YearChart
-          allTransactions={allTransactions}
-          selectedMonth={null}
-          onSelectMonth={m => {
-            if (m) { setPeriod({ type: 'month', anchor: new Date(m.year, m.month, 15) }); setActiveCategory(null); setSearch(""); }
-          }}
-          sharedFYYear={sharedFYYear}
-          onFYChange={setSharedFYYear}
-          dark={dark}
-        />
-      )}
-      {navMode === "statement" && transactions.length > 0 && (
+      {/* ── DAILY CHART — for narrow periods where day-detail is useful ── */}
+      {transactions.length > 0 && (period.type === 'month' || period.type === 'custom' || period.type === 'statement') && (
         <StatementChart transactions={transactions} dark={dark} />
       )}
 
