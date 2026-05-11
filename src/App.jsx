@@ -2005,48 +2005,42 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark }) {
         <div className="fade-up bento-top" style={{ animationDelay: "0.05s" }} key={`${period.type}-${period.anchor?.getTime?.() ?? period.from ?? ''}-${activeStmt}`}>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #BFEFDF 60%, #DCF2F8)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Income</div>
-            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.income, true)}</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => t.isCredit).length} credits</div>
           </div>
           <div style={{ padding: "20px 20px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #FFD6C2 0%, #FFB3C6 100%)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)", marginBottom: 10 }}>Spend</div>
-            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(summary.spend, true)}</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: 14 }}>{transactions.filter(t => !t.isCredit).length} debits</div>
           </div>
-          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 28px 18px", background: netPositive ? "var(--warm-dark)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
+          <div className="net-hero-inner" style={{ borderRadius: "var(--r-xl)", padding: "20px 22px 18px", background: netPositive ? "var(--warm-dark)" : "#C0392B", boxShadow: netPositive ? "0 2px 24px rgba(21,17,14,0.18)" : "0 2px 24px rgba(192,57,43,0.25)", display: "flex", flexDirection: "column" }}>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{netPositive ? "Net Surplus" : "Net Deficit"}</div>
-            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 600, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
+            <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "white", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(Math.abs(summary.net), true)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
               <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.18)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min((summary.spend / (summary.income || 1)) * 100, 100).toFixed(1)}%`, background: "rgba(255,255,255,0.6)", borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
               </div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend ratio</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>{((summary.spend / (summary.income || 1)) * 100).toFixed(0)}% spend</div>
             </div>
           </div>
-        </div>
-
-        {/* MONTHLY INCOME COMPARISON — independent of period picker */}
-        <div className="fade-up bento-month-pair" style={{ animationDelay: "0.08s" }}>
+          {/* THIS MONTH INCOME */}
           <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(135deg, #C7EBE0 0%, #E3F1F0 100%)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.55)" }}>This Month Income</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(0,0,0,0.4)", letterSpacing: "0.06em" }}>· {monthlyIncome.thisLabel}</span>
-            </div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.55)", marginBottom: 4 }}>This Month</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "rgba(0,0,0,0.35)", letterSpacing: "0.06em", marginBottom: 8 }}>{monthlyIncome.thisLabel} · Income</div>
             <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "#0A0A0A", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(monthlyIncome.thisAmount, true)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(0,0,0,0.45)" }}>
               <span>{monthlyIncome.thisCount} credits</span>
               {monthlyIncome.delta !== null && (
                 <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, color: monthlyIncome.delta >= 0 ? "#1F8A55" : "var(--red)" }}>
-                  {monthlyIncome.delta >= 0 ? "↑" : "↓"} {Math.abs(monthlyIncome.delta).toFixed(0)}% vs last
+                  {monthlyIncome.delta >= 0 ? "↑" : "↓"} {Math.abs(monthlyIncome.delta).toFixed(0)}%
                 </span>
               )}
             </div>
           </div>
+          {/* LAST MONTH INCOME */}
           <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "var(--cream-card)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Last Month Income</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>· {monthlyIncome.lastLabel}</span>
-            </div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)", marginBottom: 4 }}>Last Month</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", letterSpacing: "0.06em", marginBottom: 8 }}>{monthlyIncome.lastLabel} · Income</div>
             <div style={{ fontFamily: "'General Sans', 'Inter', sans-serif", fontSize: 34, fontWeight: 600, color: "var(--ink)", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", flex: 1 }}>{fmt(monthlyIncome.lastAmount, true)}</div>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "var(--ink-faint)", marginTop: 14 }}>{monthlyIncome.lastCount} credits</div>
           </div>
@@ -2600,7 +2594,8 @@ export default function App() {
         .search-input::placeholder { color: var(--ink-faint); }
         .bento-top { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
         .bento-top .net-hero-inner { grid-column: 1 / -1; }
-        @media (min-width: 640px) { .bento-top { grid-template-columns: 1fr 1fr 2fr; } .bento-top .net-hero-inner { grid-column: auto; } }
+        @media (min-width: 640px) { .bento-top { grid-template-columns: 1fr 1fr 1fr; } .bento-top .net-hero-inner { grid-column: auto; } }
+        @media (min-width: 1180px) { .bento-top { grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr; } }
         .donut-container { width: 200px; height: 200px; }
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
@@ -2658,9 +2653,6 @@ export default function App() {
         .goal-pill .goal-label { font-weight: 700; color: var(--ink); }
         .goal-pill .goal-amount { color: var(--red); font-weight: 600; }
 
-        /* Monthly income comparison row */
-        .bento-month-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-        @media (max-width: 639px) { .bento-month-pair { grid-template-columns: 1fr; } }
 
         /* ─── SIDEBAR ─── */
         .studio-sidebar { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; padding: 12px; background: var(--sidebar-grad); border: 1px solid var(--cream-border); border-radius: 20px; max-height: calc(100vh - 32px); overflow-y: auto; }
