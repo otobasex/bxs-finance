@@ -3286,7 +3286,7 @@ export default function App() {
         .tx-table-v3 td.amount.debit  { color: var(--red); }
       `}</style>
 
-      <div className={dark ? "dark" : ""} style={{ background: "var(--cream)", minHeight: "100vh", padding: "24px 20px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
+      <div className={dark ? "dark" : ""} style={{ background: dark ? "var(--cream)" : "#FDF8F5", minHeight: "100vh", padding: "24px 20px 80px", fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
         <div className={`app-shell${sidebarOpen ? "" : " collapsed"}`} style={{ maxWidth: 1480, margin: "0 auto" }}>
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
