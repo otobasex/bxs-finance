@@ -885,8 +885,8 @@ function PillTicker({ categories, catMap, activeCategory, setActiveCategory }) {
   if (!categories.length) return null;
   return (
     <div className={`pill-ticker-wrap${isDragging ? " dragging" : ""}`} onMouseDown={onDown}>
-      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to right, var(--cream-card), transparent)", zIndex: 2, pointerEvents: "none" }} />
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to left, var(--cream-card), transparent)", zIndex: 2, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to right, #FBE5D8, transparent)", zIndex: 2, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: "linear-gradient(to left, #FBE5D8, transparent)", zIndex: 2, pointerEvents: "none" }} />
       <div ref={trackRef} className="pill-ticker-track" style={isDragging ? { transform: `translateX(${manualOffset}px)`, animation: "none" } : undefined}>
         {pills.map(([cat], i) => { const cfg = catMap[cat] || { color: "#7A756E", icon: "•" }; const isActive = activeCategory === cat; return <button key={`${cat}-${i}`} className={`cat-chip${isActive ? " active" : ""}`} onClick={e => { if (Math.abs(drag.current.startX - e.clientX) < 4) setActiveCategory(isActive ? null : cat); }} style={isActive ? { background: cfg.color, borderColor: "transparent" } : {}}>{cfg.icon} {cat}</button>; })}
       </div>
@@ -3017,7 +3017,7 @@ export default function App() {
         }
         .dark { --cream: #141210; --cream-card: #1C1917; --cream-border: rgba(255,255,255,0.08); --cream-border-strong: rgba(255,255,255,0.14); --ink: #F5F1ED; --ink-mid: #C4BDB6; --ink-light: #8A8279; --ink-faint: #6A6560; --charcoal: #2C2926; --sidebar-grad: linear-gradient(180deg, #2A1F17 0%, #1F1812 100%); }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 4px; }
-        .cat-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; border: 1px solid var(--cream-border); background: var(--cream-card); color: var(--ink-mid); transition: all 0.15s; white-space: nowrap; }
+        .cat-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; border: 1px solid var(--cream-border); background: #FDF8F5; color: var(--ink-mid); transition: all 0.15s; white-space: nowrap; }
         .cat-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .cat-chip.active { color: white; border-color: transparent; }
         .tx-row { border-bottom: 1px solid var(--cream-border); transition: background 0.1s; }
@@ -3168,7 +3168,7 @@ export default function App() {
         .donut-svg { width: 100%; height: 100%; display: block; }
         .donut-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
         @media (max-width: 639px) { .donut-container { width: 280px; height: 280px; margin: 0 auto; } .donut-layout { flex-direction: column; align-items: center; } .donut-legend { width: 100%; } }
-        .pill-ticker-wrap { position: relative; overflow: hidden; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--cream-border); cursor: grab; user-select: none; }
+        .pill-ticker-wrap { position: relative; overflow: hidden; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--cream-border); cursor: grab; user-select: none; }
         .pill-ticker-wrap:active { cursor: grabbing; }
         .pill-ticker-track { display: flex; gap: 6px; width: max-content; animation: ticker 28s linear infinite; }
         .pill-ticker-wrap:hover .pill-ticker-track, .pill-ticker-wrap.dragging .pill-ticker-track { animation-play-state: paused; }
