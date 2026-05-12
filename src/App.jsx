@@ -2718,7 +2718,7 @@ const SUBSCRIPTIONS = [
   { name: "ChatGPT",    amount: 131,    day: 11, label: "Recurring" },
   { name: "Adobe",      amount: 650,    day: 14, label: "Recurring" },
   { name: "Claude AI",  amount: 1643,   day: 14, label: "Recurring" },
-  { name: "Freepik",    amount: 328,    day: 22, label: "Recurring" },
+  { name: "Magnific",   amount: 328,    day: 22, label: "Recurring" },
 ];
 
 const UPCOMING_HORIZON_DAYS = 30;
