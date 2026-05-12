@@ -737,7 +737,7 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
   const totalIncome = monthData.reduce((s, m) => s + m.income, 0);
   const totalSpend  = monthData.reduce((s, m) => s + m.spend, 0);
 
-  const bg        = dark ? "#111111"                  : "#FDF8F5";
+  const bg        = dark ? "#111111"                  : "linear-gradient(180deg, #FBEFE8 0%, #FBE5D8 100%)";
   const border    = dark ? "rgba(255,255,255,0.06)"   : "var(--cream-border)";
   const gridLine  = dark ? "rgba(255,255,255,0.06)"   : "rgba(0,0,0,0.05)";
   const fyColor   = dark ? "rgba(255,255,255,0.9)"    : "var(--ink)";
@@ -2023,7 +2023,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
             </div>
           </div>
           {/* LAST MONTH INCOME */}
-          <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "#FDF8F5", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "20px 22px 18px", borderRadius: "var(--r-xl)", background: "linear-gradient(180deg, #FBEFE8 0%, #FBE5D8 100%)", border: "1px solid var(--cream-border)", display: "flex", flexDirection: "column" }}>
             <div className="kpi-head">
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-light)" }}>Last Month</div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--ink-faint)", letterSpacing: "0.06em" }}>{monthlyIncome.lastLabel} · Income</div>
