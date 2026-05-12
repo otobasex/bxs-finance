@@ -782,6 +782,12 @@ function YearChart({ allTransactions, selectedMonth, onSelectMonth, sharedFYYear
 
       {/* Bars */}
       <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 110, position: "relative", zIndex: 1 }}>
+        {/* Horizontal gridlines (sit behind the bars) */}
+        <div aria-hidden="true" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", pointerEvents: "none", zIndex: 0 }}>
+          {[0,1,2,3,4].map(i => (
+            <div key={i} style={{ width: "100%", height: 1, background: gridLine }} />
+          ))}
+        </div>
         {monthData.map((m, i) => {
           const isSelected = selectedMonth && selectedMonth.month === m.month && selectedMonth.year === m.year;
           const incomeH = m.income > 0 ? Math.max((m.income / maxVal) * 100, 4) : 0;
