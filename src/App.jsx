@@ -3261,7 +3261,7 @@ export default function App() {
         .ai-insight-dismiss:hover { background: rgba(0,0,0,0.08); color: var(--ink); }
 
         .studio-foot { padding: 14px 8px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .studio-version { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--ink-faint); text-transform: uppercase; text-align: center; }
+        .studio-version { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: var(--ink-mid); text-transform: uppercase; text-align: center; }
 
         /* Hamburger button */
         .nav-hamburger { background: transparent; border: 1.5px solid rgba(0,0,0,0.14); border-radius: 100px; width: 34px; height: 34px; cursor: pointer; color: var(--ink-mid); display: flex; align-items: center; justify-content: center; }
