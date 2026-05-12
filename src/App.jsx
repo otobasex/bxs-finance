@@ -2820,7 +2820,7 @@ function Sidebar({ open, onClose }) {
           </div>
           <div className="studio-name">Money OS</div>
           <button className="sidebar-close" onClick={onClose} aria-label="Collapse sidebar" title="Collapse">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <svg viewBox="0 0 10 10"><polygon points="8,1 2,5 8,9" fill="currentColor"/></svg>
           </button>
         </div>
 
@@ -3212,9 +3212,9 @@ export default function App() {
           .app-shell.collapsed .studio-sidebar { display: none; }
           .sidebar-close { display: flex !important; }
         }
-        .sidebar-close { display: none; background: transparent; border: 1px solid var(--cream-border); border-radius: 100px; width: 26px; height: 26px; align-items: center; justify-content: center; cursor: pointer; color: var(--ink-faint); flex-shrink: 0; margin-left: auto; }
-        .sidebar-close:hover { background: var(--cream); color: var(--ink); }
-        .sidebar-close svg { width: 12px; height: 12px; }
+        .sidebar-close { display: none; background: #FDF8F5; border: 1px solid var(--cream-border); border-radius: 100px; width: 26px; height: 26px; align-items: center; justify-content: center; cursor: pointer; color: var(--ink-mid); flex-shrink: 0; margin-left: auto; transition: color 0.15s, border-color 0.15s; }
+        .sidebar-close:hover { color: var(--ink); border-color: var(--cream-border-strong); }
+        .sidebar-close svg { width: 9px; height: 9px; }
 
         /* Goal pill */
         .goal-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 100px; background: #FDF8F5; border: 1px solid var(--cream-border); font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink-mid); letter-spacing: -0.005em; line-height: 1; }
