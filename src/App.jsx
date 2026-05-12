@@ -1599,17 +1599,26 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
     const thisM = now.getMonth(), thisY = now.getFullYear();
     const lastDate = new Date(thisY, thisM - 1, 1);
     const lastM = lastDate.getMonth(), lastY = lastDate.getFullYear();
-    let thisAmount = 0, lastAmount = 0, thisCount = 0, lastCount = 0;
+    let stThis = 0, stLast = 0, stThisCount = 0, stLastCount = 0;
     for (const t of allTransactions) {
       if (!t.isCredit) continue;
       const d = t.date instanceof Date ? t.date : new Date(t.date);
       const m = d.getMonth(), y = d.getFullYear();
-      if (m === thisM && y === thisY) { thisAmount += t.amount; thisCount++; }
-      else if (m === lastM && y === lastY) { lastAmount += t.amount; lastCount++; }
+      if (m === thisM && y === thisY) { stThis += t.amount; stThisCount++; }
+      else if (m === lastM && y === lastY) { stLast += t.amount; stLastCount++; }
     }
+    // Notion override: if a month key exists in NOTION_INCOME, use that
+    // instead of the statement-derived figure (statements lag the live tracker)
+    const k = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+    const tn = NOTION_INCOME[k(thisY, thisM)];
+    const ln = NOTION_INCOME[k(lastY, lastM)];
+    const thisAmount = tn ? tn.amount : stThis;
+    const thisCount  = tn ? tn.count  : stThisCount;
+    const lastAmount = ln ? ln.amount : stLast;
+    const lastCount  = ln ? ln.count  : stLastCount;
     return {
-      thisAmount, thisCount, thisLabel: `${ALL_MONTHS[thisM]} ${thisY}`,
-      lastAmount, lastCount, lastLabel: `${ALL_MONTHS[lastM]} ${lastY}`,
+      thisAmount, thisCount, thisLabel: `${ALL_MONTHS[thisM]} ${thisY}`, thisFromNotion: !!tn,
+      lastAmount, lastCount, lastLabel: `${ALL_MONTHS[lastM]} ${lastY}`, lastFromNotion: !!ln,
       delta: lastAmount === 0 ? null : ((thisAmount - lastAmount) / lastAmount) * 100,
     };
   }, [allTransactions]);
@@ -2711,6 +2720,17 @@ function ReceivablesCard() {
     </section>
   );
 }
+
+// Snapshot of the Notion "All Months Income" DB (CRM Databases → BXS Finance
+// Tracker → Income) keyed by YYYY-MM. Used for the *current* month before the
+// bank statement loads — while you're tracking payments manually in Notion.
+// When a key is present here, it overrides what allTransactions would show
+// for that month. Uses "True Amount" (post-fee), not raw "Amount", so
+// pass-through deposits (visa lady, etc.) don't inflate the total.
+// Re-pull whenever you update the Notion DB.
+const NOTION_INCOME = {
+  "2026-05": { amount: 22250, count: 3 },
+};
 
 // Mirrors the Notion "Business Subscriptions (Monthly)" DB. All recurring on
 // the day-of-month from Notion. Edit here when you add/remove a subscription.
