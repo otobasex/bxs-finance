@@ -2712,6 +2712,8 @@ const SUBSCRIPTIONS = [
   { name: "Apple One",  amount: 229.99, day: 1,  label: "Recurring" },
   { name: "Microsoft",  amount: 109,    day: 1,  label: "Recurring" },
   { name: "Google One", amount: 44.20,  day: 1,  label: "Recurring" },
+  { name: "Xneelo",     amount: 699,    day: 1,  label: "Recurring" },
+  { name: "Internet",   amount: 899,    day: 1,  label: "Recurring" },
   { name: "Flickr",     amount: 180,    day: 5,  label: "Recurring" },
   { name: "MailChimp",  amount: 550,    day: 5,  label: "Recurring" },
   { name: "Notion",     amount: 100,    day: 7,  label: "Recurring" },
