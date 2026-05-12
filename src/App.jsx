@@ -1361,7 +1361,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
   //   all:      no filter
   //   custom:   from + to (ISO date strings, inclusive)
   //   statement: activeStmt picks which imported statement
-  const [period, setPeriod] = useState(() => ({ type: 'fy', anchor: new Date() }));
+  const [period, setPeriod] = useState(() => ({ type: 'cy', anchor: new Date() }));
   // Visualization mode is derived from period — 'statement' type shows statement tabs/chart,
   // everything else shows the calendar/year chart.
   const navMode = period.type === 'statement' ? 'statement' : 'calendar';
@@ -2147,7 +2147,7 @@ function DashboardPanel({ userId, workspace, categories, catMap, dark, accountLa
                 <button onClick={() => setShowCustomRange(true)} style={{ padding: "5px 14px", borderRadius: 100, border: `1px solid ${customRange ? "var(--red)" : "var(--cream-border)"}`, background: customRange ? "rgba(227,26,81,0.06)" : "transparent", color: customRange ? "var(--red)" : "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: customRange ? 700 : 400, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
                   {customRange ? `📅 ${customRange.from} → ${customRange.to} ✕` : "📅 Custom Range"}
                 </button>
-                {customRange && <button onClick={() => setPeriod({ type: 'fy', anchor: new Date() })} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
+                {customRange && <button onClick={() => setPeriod({ type: 'cy', anchor: new Date() })} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 9, color: "var(--ink-faint)" }}>Clear</button>}
                 <button onClick={() => setShowImport(true)} style={{ padding: "5px 12px", borderRadius: 100, border: "1px dashed var(--cream-border)", background: "transparent", color: "var(--ink-faint)", fontFamily: "'Inter', sans-serif", fontSize: 10, cursor: "pointer" }}>+ Add</button>
               </div>
             </div>
