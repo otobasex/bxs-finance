@@ -3036,6 +3036,7 @@ export default function App() {
         /* Categories + Transactions side-by-side */
         .dual-bento { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
         .dual-bento > .stat-card { margin: 0; min-width: 0; background: #FDF8F5; }
+        .dual-bento > .stat-card:first-child { background: linear-gradient(180deg, #FBEFE8 0%, #FBE5D8 100%); }
         @media (max-width: 1100px) { .dual-bento { grid-template-columns: 1fr; } }
 
         /* v3 section heads (Category + Transactions) */
